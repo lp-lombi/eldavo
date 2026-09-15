@@ -1,0 +1,19 @@
+{
+  "name": "eldavo-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "workspaces": ["packages/*"],
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run build --workspace @eldavo/backend",
+    "dev": "npm run dev --workspace @eldavo/backend",
+    "start": "npm run start --workspace @eldavo/backend",
+    "test": "npm run test --workspace @eldavo/backend",
+    "test:watch": "npm run test:watch --workspace @eldavo/backend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "@eldavo/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reserved package for the future Expo and React Native application."
+}

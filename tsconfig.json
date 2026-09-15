@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "compilerOptions": {
+        "strict": true
+  },
+  "references": [
+    { "path": "./packages/backend" }
+  ]
+}

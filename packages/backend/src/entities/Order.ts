@@ -1,0 +1,24 @@
+import { CreateDateColumn, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Client } from './Client';
+
+@Entity()
+export class Order {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+
+  @Column({ type: 'datetime', nullable: true })
+  completionDate?: Date;
+
+  @ManyToOne(() => Client, (client) => client.orders, { nullable: false })
+  @JoinColumn({ name: 'clientId' })
+  client!: Client;
+
+  @Column()
+  clientId!: number;
+
+  @Column({ type: 'decimal' })
+  value!: number;
+}
