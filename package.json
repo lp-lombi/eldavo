@@ -6,10 +6,13 @@
   "workspaces": ["packages/*"],
   "main": "index.js",
   "scripts": {
-    "build": "npm run build --workspace @eldavo/backend",
-    "dev": "npm run dev --workspace @eldavo/backend",
-    "start": "npm run start --workspace @eldavo/backend",
-    "test": "npm run test --workspace @eldavo/backend",
+    "build:backend": "npm run build --workspace @eldavo/backend",
+    "dev:backend": "npm run dev --workspace @eldavo/backend",
+    "start:backend": "npm run start --workspace @eldavo/backend",
+    "dev:frontend": "npm run start --workspace @eldavo/frontend",
+    "web:frontend": "npm run web --workspace @eldavo/frontend",
+    "android:frontend": "npm run android --workspace @eldavo/frontend",
+    "test:backend": "npm run test --workspace @eldavo/backend",
     "test:watch": "npm run test:watch --workspace @eldavo/backend"
   },
   "keywords": [],

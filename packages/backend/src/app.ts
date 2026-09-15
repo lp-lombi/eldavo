@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { DataSource } from 'typeorm';
 import { createClientRouter } from './routes/clients';
 import { createOrderRouter } from './routes/orders';
@@ -7,6 +8,7 @@ import { createAuthRouter } from './routes/auth';
 
 export function createApp(dataSource: DataSource): express.Express {
   const app = express();
+  app.use(cors());
   app.use(express.json());
 
   app.get('/health', (_request, response) => {

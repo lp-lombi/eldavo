@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Eldavo",
+    "slug": "eldavo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["ios", "android", "web"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
