@@ -1,3 +1,0 @@
-$kind: collection
-name: Clients
-description: 'CRUD endpoints for managing clients in the Eldavo API.'

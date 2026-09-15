@@ -20,6 +20,19 @@ npm run dev
 
 La API queda disponible en `http://localhost:3000`.
 
+La primera vez que ejecutes el backend, si no existe `.env`, se creara una plantilla y el proceso se detendra. Edita sus valores y vuelve a ejecutar `npm run dev`:
+
+```powershell
+$env:ADMIN_USERNAME = "admin"
+$env:ADMIN_PASSWORD = "cambia-esta-clave"
+$env:JWT_SECRET = "cambia-este-secreto-largo"
+npm run dev
+```
+
+Si `.env` existe pero le faltan valores obligatorios, el backend tambien avisara y no iniciara.
+
+`ADMIN_PASSWORD` se convierte en hash antes de guardarse. El login es `POST /auth/login` y devuelve un token JWT; envialo en las rutas protegidas como `Authorization: Bearer <token>`.
+
 ## Tests
 
 ```bash
@@ -34,10 +47,11 @@ Los comandos ejecutados desde la raiz se delegan al paquete backend. Tambien pue
 ## Endpoints
 
 - `GET /health`
-- `GET /clients`
-- `GET /clients/:id`
-- `POST /clients` con `name` obligatorio y `email`, `phone`, `address` opcionales
-- `GET /orders`
-- `POST /orders` con `clientId` y `value` obligatorios, y `completionDate` opcional
+- `POST /auth/login` con `username` y `password`
+- `GET /clients` (requiere login)
+- `GET /clients/:id` (requiere login)
+- `POST /clients` (requiere login), con `name` obligatorio y `email`, `phone`, `address` opcionales
+- `GET /orders` (requiere login)
+- `POST /orders` (requiere login), con `clientId` y `value` obligatorios, y `completionDate` opcional
 
 La coleccion [packages/backend/postman/eldavo-backend.postman_collection.json](packages/backend/postman/eldavo-backend.postman_collection.json) se puede importar directamente en Postman.

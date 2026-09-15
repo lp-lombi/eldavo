@@ -1,3 +1,0 @@
-$kind: collection
-name: Orders
-description: 'Endpoints for managing orders in the Eldavo API.'

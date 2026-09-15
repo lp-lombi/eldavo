@@ -1,0 +1,22 @@
+$kind: collection
+auth:
+  - id: dc86f7eb-c497-4e45-83cf-1b45a7dffdca
+    type: jwt
+    name: JWT Bearer
+    credentials:
+      algorithm: HS256
+      isSecretBase64Encoded: false
+      payload: "{\r
+
+        \  \"sub\": \"1\",\r
+
+        \  \"username\": \"admin\",\r
+
+        \  \"role\": \"admin\"\r
+
+        }"
+      addTokenTo: header
+      headerPrefix: Bearer
+      queryParamKey: token
+      header: "{}"
+      secret: eldavo

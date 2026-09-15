@@ -2,6 +2,8 @@ import express from 'express';
 import { DataSource } from 'typeorm';
 import { createClientRouter } from './routes/clients';
 import { createOrderRouter } from './routes/orders';
+import { requireAuth } from './auth';
+import { createAuthRouter } from './routes/auth';
 
 export function createApp(dataSource: DataSource): express.Express {
   const app = express();
@@ -11,7 +13,8 @@ export function createApp(dataSource: DataSource): express.Express {
     response.json({ status: 'ok' });
   });
 
-  app.use('/clients', createClientRouter(dataSource));
-  app.use('/orders', createOrderRouter(dataSource));
+  app.use('/auth', createAuthRouter(dataSource));
+  app.use('/clients', requireAuth, createClientRouter(dataSource));
+  app.use('/orders', requireAuth, createOrderRouter(dataSource));
   return app;
 }

@@ -1,7 +1,7 @@
 $kind: http-request
 method: POST
 url: '{{baseUrl}}/orders'
-order: 2000
+order: 349156940572
 headers:
   - key: Content-Type
     value: application/json

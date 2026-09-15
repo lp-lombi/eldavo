@@ -1,0 +1,15 @@
+$kind: http-request
+method: POST
+url: "{{baseUrl}}/clients"
+order: 2255776734587016
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "name": "Hernán",
+      "email": "hernicorne@gmail.com",
+      "phone": "1159371504",
+      "address": "123 Main St"
+    }
