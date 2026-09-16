@@ -88,7 +88,7 @@ test('creates and lists a client with optional contact data', async () => {
   expect(listed.body[0]).toMatchObject({
     name: 'Ada Lovelace',
     email: 'ada@example.com',
-    phone: '555-0100',
+    phone: '+549555-0100',
     address: 'London',
   });
 });
@@ -101,6 +101,171 @@ test('requires a client name', async () => {
     .send({ email: 'missing@example.com' });
 
   expect(response.status).toBe(400);
+});
+
+test('updates all client fields', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const created = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+
+  const response = await request(app)
+    .put(`/clients/${created.body.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Grace Hopper', email: 'grace@example.com', phone: '555-0199', address: 'New York' });
+
+  expect(response.status).toBe(200);
+  expect(response.body).toMatchObject({
+    name: 'Grace Hopper',
+    email: 'grace@example.com',
+    phone: '+549555-0199',
+    address: 'New York',
+  });
+});
+
+test('preserves a phone number that already has an international prefix', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const response = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Grace Hopper', phone: '+34123456789' });
+
+  expect(response.status).toBe(201);
+  expect(response.body.phone).toBe('+34123456789');
+});
+
+test('deletes a client without orders', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const created = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+
+  const response = await request(app)
+    .delete(`/clients/${created.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(response.status).toBe(204);
+  const listed = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+  expect(listed.body).toHaveLength(0);
+});
+
+test('rejects deleting a client with orders', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+  await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: client.body.id, value: 10 });
+
+  const response = await request(app)
+    .delete(`/clients/${client.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+
+  expect(response.status).toBe(409);
+});
+
+test('lists orders and notes for a client and deletes a note', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+  const otherClient = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Grace Hopper' });
+
+  await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: client.body.id, value: 20 });
+  await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: otherClient.body.id, value: 30 });
+
+  const orders = await request(app)
+    .get(`/orders?clientId=${client.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(orders.status).toBe(200);
+  expect(orders.body).toHaveLength(1);
+  expect(orders.body[0].value).toBe(20);
+
+  const note = await request(app)
+    .post(`/clients/${client.body.id}/notes`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ text: 'Llamar el lunes' });
+  expect(note.status).toBe(201);
+  expect(note.body.text).toBe('Llamar el lunes');
+
+  const listedNotes = await request(app)
+    .get(`/clients/${client.body.id}/notes`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(listedNotes.body).toHaveLength(1);
+
+  const deleted = await request(app)
+    .delete(`/clients/${client.body.id}/notes/${note.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(deleted.status).toBe(204);
+});
+
+test('stores order observations and changes its status', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+
+  const created = await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: client.body.id, title: 'Entrega de repuestos', value: 125, observations: 'Entregar por la tarde' });
+  expect(created.status).toBe(201);
+  expect(created.body).toMatchObject({ title: 'Entrega de repuestos', observations: 'Entregar por la tarde', status: 'pending' });
+
+  const updated = await request(app)
+    .put(`/orders/${created.body.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ status: 'resolved' });
+  expect(updated.status).toBe(200);
+  expect(updated.body).toMatchObject({ observations: 'Entregar por la tarde', status: 'resolved' });
+});
+
+test('exports clients, orders, and notes as CSV', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+  await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: client.body.id, title: 'Entrega', value: 25 });
+  await request(app)
+    .post(`/clients/${client.body.id}/notes`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ text: 'Llamar mañana' });
+
+  const response = await request(app).get('/export.csv').set('Authorization', `Bearer ${token}`);
+
+  expect(response.status).toBe(200);
+  expect(response.headers['content-type']).toContain('text/csv');
+  expect(response.text).toContain('"tipo","id","titulo"');
+  expect(response.text).toContain('Ada Lovelace');
+  expect(response.text).toContain('Entrega');
+  expect(response.text).toContain('Llamar mañana');
 });
 
 test('registers an order for an existing client', async () => {

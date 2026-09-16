@@ -5,6 +5,7 @@ import { createClientRouter } from './routes/clients';
 import { createOrderRouter } from './routes/orders';
 import { requireAuth } from './auth';
 import { createAuthRouter } from './routes/auth';
+import { createExportRouter } from './routes/export';
 
 export function createApp(dataSource: DataSource): express.Express {
   const app = express();
@@ -18,5 +19,6 @@ export function createApp(dataSource: DataSource): express.Express {
   app.use('/auth', createAuthRouter(dataSource));
   app.use('/clients', requireAuth, createClientRouter(dataSource));
   app.use('/orders', requireAuth, createOrderRouter(dataSource));
+  app.use('/export.csv', requireAuth, createExportRouter(dataSource));
   return app;
 }

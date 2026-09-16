@@ -21,4 +21,13 @@ export class Order {
 
   @Column({ type: 'decimal' })
   value!: number;
+
+  @Column({ type: 'text', default: 'Pedido' })
+  title!: string;
+
+  @Column({ type: 'text', nullable: true })
+  observations?: string | null;
+
+  @Column({ type: 'text', default: 'pending' })
+  status!: 'pending' | 'resolved';
 }
