@@ -9,9 +9,10 @@ export type Session = { token: string; user: User };
 
 const publicApiUrl = 'http://200.89.178.188:3005';
 const isProductionAndroid = Platform.OS === 'android' && process.env.NODE_ENV === 'production';
+const isProductionWeb = Platform.OS === 'web' && process.env.NODE_ENV === 'production';
 const localApiUrl = Platform.OS === 'android' ? 'http://10.0.2.2:3005' : 'http://localhost:3005';
 const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-const apiUrl = isProductionAndroid ? publicApiUrl : configuredApiUrl || localApiUrl;
+const apiUrl = isProductionAndroid ? publicApiUrl : isProductionWeb ? configuredApiUrl || '' : configuredApiUrl || localApiUrl;
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {

@@ -29,6 +29,17 @@ npm run start:backend
 
 El comando genera la web de Expo, la copia a `packages/backend/public` y compila el backend. La aplicación queda disponible en `http://localhost:3005`.
 
+En el VPS, ejecuta el build completo después de cada actualización del código. `packages/backend/public` es un artefacto generado y no se sube al repositorio:
+
+```bash
+git pull origin main
+npm ci
+npm run build:web
+npm run start:backend
+```
+
+Si utilizas PM2 o systemd, reinicia el proceso después de `npm run build:web`. La web de producción usa la misma URL del backend para sus llamadas a la API.
+
 En otra terminal, ejecuta el frontend:
 
 ```bash
