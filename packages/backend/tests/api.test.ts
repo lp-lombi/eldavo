@@ -237,9 +237,30 @@ test('stores order observations and changes its status', async () => {
   const updated = await request(app)
     .put(`/orders/${created.body.id}`)
     .set('Authorization', `Bearer ${token}`)
-    .send({ status: 'resolved' });
+    .send({ completionDate: '2026-11-15', value: 150, observations: 'Entregar por la mañana', status: 'resolved' });
   expect(updated.status).toBe(200);
-  expect(updated.body).toMatchObject({ observations: 'Entregar por la tarde', status: 'resolved' });
+  expect(updated.body).toMatchObject({ completionDate: expect.stringContaining('2026-11-15'), value: 150, observations: 'Entregar por la mañana', status: 'resolved' });
+});
+
+test('deletes an order', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace' });
+  const created = await request(app)
+    .post('/orders')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ clientId: client.body.id, value: 125 });
+
+  const deleted = await request(app)
+    .delete(`/orders/${created.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(deleted.status).toBe(204);
+
+  const orders = await request(app).get('/orders').set('Authorization', `Bearer ${token}`);
+  expect(orders.body).toHaveLength(0);
 });
 
 test('exports clients, orders, and notes as CSV', async () => {

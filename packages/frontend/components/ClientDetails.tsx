@@ -1,15 +1,17 @@
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import { faArrowLeft, faClipboardList, faFloppyDisk, faPaperPlane, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Client, createClientNote, deleteClient, deleteClientNote, getClientNotes, getClientOrders, Note, Order, updateClient } from '../src/api';
 import { colors, styles } from '../src/theme';
+import { ConfirmationModal } from './ConfirmationModal';
 import { OrderCard } from './OrderCard';
+import { OrderFormModal } from './OrderFormModal';
 
 type ClientDetailsProps = { client: Client; onBack: () => void; onSelectOrder: (order: Order) => void; token: string };
 
-export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDetailsProps) {
+export function ClientDetails({ client,   onBack, onSelectOrder, token }: ClientDetailsProps) {
   const [name, setName] = useState(client.name);
   const [email, setEmail] = useState(client.email || '');
   const [phoneValue, setPhoneValue] = useState(client.phone || '');
@@ -24,6 +26,8 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
   const [notesError, setNotesError] = useState('');
   const [notesLoading, setNotesLoading] = useState(true);
   const [addingNote, setAddingNote] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'client' | 'note'; note?: Note } | null>(null);
+  const [createOrderVisible, setCreateOrderVisible] = useState(false);
   const phone = phoneValue.replace(/[^\d+]/g, '');
 
   useEffect(() => {
@@ -69,10 +73,7 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
   };
 
   const confirmDelete = () => {
-    Alert.alert('Eliminar cliente', `¿Quieres eliminar a ${name}?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: removeClient },
-    ]);
+    setDeleteConfirmation({ type: 'client' });
   };
 
   const cancelEditing = () => {
@@ -86,6 +87,11 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
 
   const openWhatsApp = () => {
     if (phone) Linking.openURL(`https://wa.me/${phone.replace('+', '')}`);
+  };
+
+  const openAddressInMaps = () => {
+    const trimmedAddress = address.trim();
+    if (trimmedAddress) Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmedAddress)}`);
   };
 
   const addNote = async () => {
@@ -104,17 +110,31 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
   };
 
   const removeNote = (note: Note) => {
-    Alert.alert('Eliminar nota', '¿Quieres eliminar esta nota?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try {
-          await deleteClientNote(token, client.id, note.id);
-          setNotes((currentNotes) => currentNotes.filter((currentNote) => currentNote.id !== note.id));
-        } catch (requestError) {
-          setNotesError(requestError instanceof Error ? requestError.message : 'No se pudo eliminar la nota');
-        }
-      } },
-    ]);
+    setDeleteConfirmation({ type: 'note', note });
+  };
+
+  const handleOrderCreated = (order: Order) => {
+    setOrders((currentOrders) => [...currentOrders, order]);
+    setCreateOrderVisible(false);
+  };
+
+  const confirmDeletion = async () => {
+    const confirmation = deleteConfirmation;
+    setDeleteConfirmation(null);
+    if (!confirmation) return;
+
+    if (confirmation.type === 'client') {
+      await removeClient();
+      return;
+    }
+
+    if (!confirmation.note) return;
+    try {
+      await deleteClientNote(token, client.id, confirmation.note.id);
+      setNotes((currentNotes) => currentNotes.filter((currentNote) => currentNote.id !== confirmation.note?.id));
+    } catch (requestError) {
+      setNotesError(requestError instanceof Error ? requestError.message : 'No se pudo eliminar la nota');
+    }
   };
 
   return (
@@ -122,7 +142,7 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
       <Pressable onPress={onBack} style={styles.backButton}>
         <View style={styles.buttonContent}>
           <FontAwesomeIcon color={styles.backText.color} icon={faArrowLeft} size={14} />
-          <Text style={styles.backText}>Volver a clientes</Text>
+          <Text style={styles.backText}>Volver</Text>
         </View>
       </Pressable>
       <View style={styles.detailHeader}>
@@ -137,32 +157,28 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
       <View>
         {editing ? <>
           <View style={styles.detailRow}>
-            <View style={styles.detailRowInfo}>
+            <View style={styles.detailRowInfoFull}>
               <Text style={styles.label}>Nombre</Text>
               <TextInput onChangeText={setName} style={[styles.input, styles.detailInput]} value={name} />
             </View>
-            <View style={styles.detailActionSlot} />
           </View>
           <View style={styles.detailRow}>
-            <View style={styles.detailRowInfo}>
+            <View style={styles.detailRowInfoFull}>
               <Text style={styles.label}>Teléfono</Text>
               <TextInput keyboardType="phone-pad" onChangeText={setPhoneValue} placeholder="Sin teléfono registrado" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={phoneValue} />
             </View>
-            <View style={styles.detailActionSlot} />
           </View>
           <View style={styles.detailRow}>
-            <View style={styles.detailRowInfo}>
+            <View style={styles.detailRowInfoFull}>
               <Text style={styles.label}>Email</Text>
               <TextInput autoCapitalize="none" keyboardType="email-address" onChangeText={setEmail} placeholder="Sin email registrado" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={email} />
             </View>
-            <View style={styles.detailActionSlot} />
           </View>
           <View style={styles.detailRow}>
-            <View style={styles.detailRowInfo}>
+            <View style={styles.detailRowInfoFull}>
               <Text style={styles.label}>Dirección</Text>
               <TextInput onChangeText={setAddress} placeholder="Sin dirección registrada" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={address} />
             </View>
-            <View style={styles.detailActionSlot} />
           </View>
         </> : <>
           <View style={styles.detailRow}>
@@ -186,7 +202,9 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
               <Text style={styles.label}>Dirección</Text>
               <Text style={styles.detailValue}>{address || 'Sin dirección registrada'}</Text>
             </View>
-            <View style={styles.detailActionSlot} />
+            <Pressable accessibilityLabel="Buscar dirección en Google Maps" disabled={!address.trim()} onPress={openAddressInMaps} style={({ pressed }) => [styles.mapsButton, pressed && styles.buttonPressed, !address.trim() && styles.buttonDisabled]}>
+              <FontAwesomeIcon color={styles.mapsText.color} icon={faMapLocationDot} size={18} />
+            </Pressable>
           </View>
         </>}
       </View>
@@ -210,9 +228,14 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
           </View>
         </Pressable> : null}
       <View style={styles.detailSection}>
-        <View style={styles.sectionHeading}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeading}>
           <FontAwesomeIcon color={colors.accent} icon={faClipboardList} size={18} />
           <Text style={styles.sectionTitle}>Pedidos ({orders.length})</Text>
+          </View>
+          <Pressable accessibilityLabel="Agregar pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.addButton, pressed && styles.buttonPressed]}>
+            <FontAwesomeIcon color={styles.addButtonText.color} icon={faPlus} size={16} />
+          </Pressable>
         </View>
         {notesLoading ? <Text style={styles.empty}>Cargando pedidos...</Text> : orders.length ? orders.map((order) => (
           <OrderCard key={order.id} onPress={onSelectOrder} order={order} />
@@ -239,6 +262,14 @@ export function ClientDetails({ client, onBack, onSelectOrder, token }: ClientDe
           </View>
         )) : <Text style={styles.empty}>Todavía no hay notas para este cliente.</Text>}
       </View>
+      <ConfirmationModal
+        message={deleteConfirmation?.type === 'client' ? `¿Querés eliminar a ${name} y a sus pedidos asociados?` : '¿Querés eliminar esta nota?'}
+        onCancel={() => setDeleteConfirmation(null)}
+        onConfirm={confirmDeletion}
+        title={deleteConfirmation?.type === 'client' ? 'Eliminar cliente' : 'Eliminar nota'}
+        visible={deleteConfirmation !== null}
+      />
+      <OrderFormModal clients={[client]} initialClient={client} onCancel={() => setCreateOrderVisible(false)} onCreated={handleOrderCreated} token={token} visible={createOrderVisible} />
     </ScrollView>
   );
 }

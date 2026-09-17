@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { SafeAreaView } from 'react-native';
+import { Platform, SafeAreaView, StatusBar as NativeStatusBar } from 'react-native';
 import { ClientDetails } from './components/ClientDetails';
 import { Dashboard } from './components/Dashboard';
 import { LoginScreen } from './components/LoginScreen';
@@ -21,5 +21,5 @@ export default function App() {
 
   const updateSelectedOrder = (order: Order) => setSelectedOrder(order);
 
-  return <SafeAreaView style={styles.safeArea}><StatusBar style="light" />{session ? selectedOrder ? <OrderDetails onBack={() => setSelectedOrder(null)} onUpdated={updateSelectedOrder} order={selectedOrder} token={session.token} /> : selectedClient ? <ClientDetails client={selectedClient} onBack={() => setSelectedClient(null)} onSelectOrder={setSelectedOrder} token={session.token} /> : <Dashboard onLogout={logout} onSelectClient={setSelectedClient} onSelectOrder={setSelectedOrder} session={session} /> : <LoginScreen onLogin={setSession} />}</SafeAreaView>;
+  return <SafeAreaView style={[styles.safeArea, Platform.OS === 'android' && { paddingTop: NativeStatusBar.currentHeight ?? 0 }]}><StatusBar backgroundColor={colors.background} style="light" />{session ? selectedOrder ? <OrderDetails onBack={() => setSelectedOrder(null)} onUpdated={updateSelectedOrder} order={selectedOrder} token={session.token} /> : selectedClient ? <ClientDetails client={selectedClient} onBack={() => setSelectedClient(null)} onSelectOrder={setSelectedOrder} token={session.token} /> : <Dashboard onLogout={logout} onSelectClient={setSelectedClient} onSelectOrder={setSelectedOrder} session={session} /> : <LoginScreen onLogin={setSession} />}</SafeAreaView>;
 }

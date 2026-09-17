@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-La API queda disponible en `http://localhost:3000`.
+La API queda disponible en `http://localhost:3005`.
 
 En otra terminal, ejecuta el frontend:
 
@@ -27,7 +27,7 @@ npm run dev:frontend
 ```
 
 Para abrirlo directamente en web usa `npm run web:frontend`; para Android, `npm run android:frontend`.
-La app usa `http://localhost:3000` en web y `http://10.0.2.2:3000` en el emulador Android. Para un teléfono físico, crea `packages/frontend/.env` a partir de `.env.example` y cambia `EXPO_PUBLIC_API_URL` por la IP local de tu computadora.
+La app usa `http://localhost:3005` en web y `http://10.0.2.2:3005` en el emulador Android durante el desarrollo. Para un teléfono físico, crea `packages/frontend/.env` a partir de `.env.example` y cambia `EXPO_PUBLIC_API_URL` por la IP local de tu computadora. En una compilación Android de producción usa `http://200.89.178.188:3005` automáticamente.
 
 La primera vez que ejecutes el backend, si no existe `.env`, se creara una plantilla y el proceso se detendra. Edita sus valores y vuelve a ejecutar `npm run dev`:
 

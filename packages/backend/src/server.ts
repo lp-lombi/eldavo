@@ -9,7 +9,7 @@ if (!loadEnvironment()) {
 }
 
 const dataSource = createDataSource();
-const port = Number(process.env.PORT ?? 3000);
+const port = Number(process.env.PORT ?? 3005);
 
 dataSource.initialize()
   .then(() => {

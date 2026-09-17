@@ -1,5 +1,5 @@
 name: Eldavo
 values:
   - key: baseUrl
-    value: 'http://localhost:3000'
+    value: 'http://localhost:3005'
     enabled: true

@@ -1,5 +1,5 @@
 $kind: http-request
-url: http://localhost:3000/auth/login
+url: http://localhost:3005/auth/login
 method: POST
 body:
   type: json

@@ -10,7 +10,7 @@ export class Order {
   createdAt!: Date;
 
   @Column({ type: 'datetime', nullable: true })
-  completionDate?: Date;
+  completionDate?: Date | null;
 
   @ManyToOne(() => Client, (client) => client.orders, { nullable: false })
   @JoinColumn({ name: 'clientId' })

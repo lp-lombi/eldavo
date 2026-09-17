@@ -3,7 +3,7 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 
 const envPath = path.resolve(process.cwd(), '.env');
-const envTemplate = `PORT=3000
+const envTemplate = `PORT=3005
 DATABASE_PATH=eldavo.db
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin

@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { faBars, faClipboardList, faFileExport, faGaugeHigh, faRightFromBracket, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBars, faChartColumn, faClipboardList, faFileExport, faGaugeHigh, faRightFromBracket, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Client, exportDatabase, getClients, getOrders, Order, Session } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { ClientList } from './ClientList';
+import { ClientFormModal } from './ClientFormModal';
 import { OrderList } from './OrderList';
+import { OrderFormModal } from './OrderFormModal';
+import { Statistics } from './Statistics';
 
 type DashboardProps = { session: Session; onLogout: () => void; onSelectClient: (client: Client) => void; onSelectOrder: (order: Order) => void };
 
@@ -16,18 +19,13 @@ export function Dashboard({ session, onLogout, onSelectClient, onSelectOrder }: 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [createClientVisible, setCreateClientVisible] = useState(false);
+  const [createOrderVisible, setCreateOrderVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const clientsOffset = useRef(0);
   const ordersOffset = useRef(0);
-  const drawerTranslateX = useRef(new Animated.Value(-290)).current;
-
-  useEffect(() => {
-    if (menuOpen) {
-      drawerTranslateX.setValue(-290);
-      Animated.timing(drawerTranslateX, { duration: 220, toValue: 0, useNativeDriver: true }).start();
-    }
-  }, [drawerTranslateX, menuOpen]);
+  const statisticsOffset = useRef(0);
 
   const navigateTo = (offset: number) => {
     setMenuOpen(false);
@@ -36,6 +34,16 @@ export function Dashboard({ session, onLogout, onSelectClient, onSelectOrder }: 
 
   const openMenu = () => setMenuOpen(true);
   const closeMenu = () => setMenuOpen(false);
+
+  const handleClientCreated = (client: Client) => {
+    setClients((currentClients) => [...currentClients, client]);
+    setCreateClientVisible(false);
+  };
+
+  const handleOrderCreated = (order: Order) => {
+    setOrders((currentOrders) => [...currentOrders, order]);
+    setCreateOrderVisible(false);
+  };
 
   const exportCsv = async () => {
     closeMenu();
@@ -91,16 +99,19 @@ export function Dashboard({ session, onLogout, onSelectClient, onSelectOrder }: 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {!loading && !error ? <>
           <View onLayout={({ nativeEvent }) => { clientsOffset.current = nativeEvent.layout.y; }}>
-            <ClientList clients={clients} onSelect={onSelectClient} />
+            <ClientList clients={clients} onAdd={() => setCreateClientVisible(true)} onSelect={onSelectClient} />
           </View>
           <View onLayout={({ nativeEvent }) => { ordersOffset.current = nativeEvent.layout.y; }}>
-            <OrderList onSelectOrder={onSelectOrder} orders={orders} />
+            <OrderList onAdd={() => setCreateOrderVisible(true)} onSelectOrder={onSelectOrder} orders={orders} />
+          </View>
+          <View onLayout={({ nativeEvent }) => { statisticsOffset.current = nativeEvent.layout.y; }}>
+            <Statistics clients={clients} onSelectClient={onSelectClient} orders={orders} />
           </View>
         </> : null}
       </ScrollView>
       <Modal animationType="none" onRequestClose={closeMenu} transparent visible={menuOpen}>
         <View style={styles.drawerOverlay}>
-          <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerTranslateX }] }]}>
+          <View style={styles.drawer}>
             <View style={styles.drawerHeader}>
               <View>
                 <Text style={styles.eyebrow}>Navegación</Text>
@@ -123,6 +134,10 @@ export function Dashboard({ session, onLogout, onSelectClient, onSelectOrder }: 
                 <FontAwesomeIcon color={colors.textMuted} icon={faClipboardList} size={16} />
                 <Text style={styles.navItemText}>Pedidos</Text>
               </Pressable>
+              <Pressable onPress={() => navigateTo(statisticsOffset.current)} style={styles.navItem}>
+                <FontAwesomeIcon color={colors.textMuted} icon={faChartColumn} size={16} />
+                <Text style={styles.navItemText}>Estadísticas</Text>
+              </Pressable>
               <Pressable onPress={exportCsv} style={styles.navItem}>
                 <FontAwesomeIcon color={colors.textMuted} icon={faFileExport} size={16} />
                 <Text style={styles.navItemText}>Exportar CSV</Text>
@@ -134,10 +149,12 @@ export function Dashboard({ session, onLogout, onSelectClient, onSelectOrder }: 
                 <Text style={styles.drawerLogoutText}>Salir</Text>
               </Pressable>
             </View>
-          </Animated.View>
+          </View>
           <Pressable accessibilityLabel="Cerrar menú" onPress={closeMenu} style={styles.drawerBackdrop} />
         </View>
       </Modal>
+      <ClientFormModal onCancel={() => setCreateClientVisible(false)} onCreated={handleClientCreated} token={session.token} visible={createClientVisible} />
+      <OrderFormModal clients={clients} onCancel={() => setCreateOrderVisible(false)} onCreated={handleOrderCreated} token={session.token} visible={createOrderVisible} />
     </View>
   );
 }

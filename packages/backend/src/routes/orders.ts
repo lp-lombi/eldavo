@@ -69,17 +69,47 @@ export function createOrderRouter(dataSource: DataSource): Router {
       return;
     }
 
-    const { observations, status, title } = request.body as { observations?: string; status?: 'pending' | 'resolved'; title?: string };
+    const { completionDate, observations, status, title, value } = request.body as { completionDate?: string | null; observations?: string; status?: 'pending' | 'resolved'; title?: string; value?: number };
     if (status !== undefined && status !== 'pending' && status !== 'resolved') {
       response.status(400).json({ message: 'status must be pending or resolved' });
       return;
+    }
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+      response.status(400).json({ message: 'value must be a finite number' });
+      return;
+    }
+
+    let parsedCompletionDate: Date | null | undefined;
+    if (completionDate !== undefined) {
+      if (completionDate === null || completionDate.trim() === '') {
+        parsedCompletionDate = null;
+      } else {
+        parsedCompletionDate = new Date(completionDate);
+        if (Number.isNaN(parsedCompletionDate.getTime())) {
+          response.status(400).json({ message: 'completionDate must be a valid date' });
+          return;
+        }
+      }
     }
 
     if (observations !== undefined) order.observations = observations.trim() || null;
     if (status !== undefined) order.status = status;
     if (title !== undefined) order.title = title.trim() || 'Pedido';
+    if (value !== undefined) order.value = value;
+    if (parsedCompletionDate !== undefined) order.completionDate = parsedCompletionDate;
     await orderRepository.save(order);
     response.json(await orderRepository.findOneOrFail({ where: { id: order.id }, relations: { client: true } }));
+  });
+
+  router.delete('/:id', async (request, response) => {
+    const order = await orderRepository.findOneBy({ id: Number(request.params.id) });
+    if (!order) {
+      response.status(404).json({ message: 'Order not found' });
+      return;
+    }
+
+    await orderRepository.remove(order);
+    response.status(204).send();
   });
 
   return router;

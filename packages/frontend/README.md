@@ -10,4 +10,4 @@ npm run web:frontend
 npm run android:frontend
 ```
 
-La URL por defecto es `http://localhost:3000` en web y `http://10.0.2.2:3000` en el emulador Android. Para un dispositivo físico, configura `EXPO_PUBLIC_API_URL` en un archivo `.env` local.
+La URL por defecto es `http://localhost:3005` en web y `http://10.0.2.2:3005` en el emulador Android durante el desarrollo. Para un dispositivo físico, configura `EXPO_PUBLIC_API_URL` en un archivo `.env` local. Las compilaciones Android de producción usan `http://200.89.178.188:3005`.
