@@ -6,9 +6,9 @@ import { Order } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { OrderCard } from './OrderCard';
 
-type OrderListProps = { orders: Order[]; onAdd: () => void; onSelectOrder?: (order: Order) => void };
+type OrderListProps = { orders: Order[]; onAdd?: () => void; onSelectOrder?: (order: Order) => void; pendingOnly?: boolean; totalCount?: number };
 
-export function OrderList({ orders, onAdd, onSelectOrder }: OrderListProps) {
+export function OrderList({ orders, onAdd, onSelectOrder, pendingOnly = false, totalCount }: OrderListProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pendingOrders = orders.filter((order) => order.status === 'pending');
   const resolvedOrders = orders.filter((order) => order.status === 'resolved');
@@ -21,18 +21,20 @@ export function OrderList({ orders, onAdd, onSelectOrder }: OrderListProps) {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Pressable accessibilityRole="button" onPress={() => setCollapsed((current) => !current)} style={styles.sectionToggle}>
-          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Pedidos ({orders.length})</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>{`Pedidos (${totalCount ?? orders.length})`}</Text>
           <FontAwesomeIcon color={colors.textMuted} icon={collapsed ? faChevronDown : faChevronUp} size={14} />
         </Pressable>
-        <Pressable accessibilityLabel="Agregar pedido" onPress={onAdd} style={({ pressed }) => [styles.addButton, pressed && styles.buttonPressed]}>
+        {onAdd ? <Pressable accessibilityLabel="Agregar pedido" onPress={onAdd} style={({ pressed }) => [styles.addButton, pressed && styles.buttonPressed]}>
           <FontAwesomeIcon color={styles.addButtonText.color} icon={faPlus} size={16} />
-        </Pressable>
+        </Pressable> : null}
       </View>
       {!collapsed ? <>
-        <Text style={styles.orderGroupTitle}>Pendientes ({pendingOrders.length})</Text>
+        {!pendingOnly ? <Text style={styles.orderGroupTitle}>Pendientes ({pendingOrders.length})</Text> : null}
         {renderOrders(pendingOrders)}
-        <Text style={styles.orderGroupTitle}>Cerrados ({resolvedOrders.length})</Text>
-        {renderOrders(resolvedOrders)}
+        {!pendingOnly ? <>
+          <Text style={styles.orderGroupTitle}>Cerrados ({resolvedOrders.length})</Text>
+          {renderOrders(resolvedOrders)}
+        </> : null}
       </> : null}
     </View>
   );

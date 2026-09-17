@@ -46,12 +46,9 @@ export function Statistics({ clients, onSelectClient, orders }: StatisticsProps)
 
   return (
     <View style={styles.section}>
-      <View style={styles.statisticsHeader}>
+      <View style={styles.sectionHeader}>
         <Pressable accessibilityRole="button" onPress={() => setCollapsed((current) => !current)} style={styles.sectionToggle}>
-          <View>
-            <Text style={styles.eyebrow}>Rendimiento</Text>
-            <Text style={styles.title}>Estadísticas</Text>
-          </View>
+          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Estadísticas</Text>
           <FontAwesomeIcon color={colors.textMuted} icon={collapsed ? faChevronDown : faChevronUp} size={14} />
         </Pressable>
       </View>

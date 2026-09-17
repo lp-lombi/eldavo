@@ -20,6 +20,15 @@ npm run dev
 
 La API queda disponible en `http://localhost:3005`.
 
+Para compilar la aplicación web y servirla desde el mismo servidor del backend:
+
+```bash
+npm run build:web
+npm run start:backend
+```
+
+El comando genera la web de Expo, la copia a `packages/backend/public` y compila el backend. La aplicación queda disponible en `http://localhost:3005`.
+
 En otra terminal, ejecuta el frontend:
 
 ```bash

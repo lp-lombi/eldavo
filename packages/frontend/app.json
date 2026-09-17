@@ -5,9 +5,21 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "web": {
       "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2e56fb65-b57d-44d0-af62-7d4f1c4422ce"
+      }
+    },
+    "android": {
+      "package": "com.lombi.eldavo"
     }
   }
 }

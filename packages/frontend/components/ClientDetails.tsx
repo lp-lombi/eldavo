@@ -231,7 +231,7 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeading}>
           <FontAwesomeIcon color={colors.accent} icon={faClipboardList} size={18} />
-          <Text style={styles.sectionTitle}>Pedidos ({orders.length})</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Pedidos ({orders.length})</Text>
           </View>
           <Pressable accessibilityLabel="Agregar pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.addButton, pressed && styles.buttonPressed]}>
             <FontAwesomeIcon color={styles.addButtonText.color} icon={faPlus} size={16} />
