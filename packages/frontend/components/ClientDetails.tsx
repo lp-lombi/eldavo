@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react';
 import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faFacebook, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
-import { Client, createClientNote, deleteClient, deleteClientNote, getClientNotes, getClientOrders, Note, Order, updateClient } from '../src/api';
+import { Client, createClientNote, deleteClient, deleteClientNote, getClientNotes, getClientOrders, getTags, Note, Order, Tag, updateClient } from '../src/api';
 import { colors, styles } from '../src/theme';
+import { getTagTextColor } from '../src/tagColors';
 import { ConfirmationModal } from './ConfirmationModal';
 import { OrderCard } from './OrderCard';
 import { OrderFormModal } from './OrderFormModal';
+import { TagPicker } from './TagPicker';
 
 type ClientDetailsProps = { client: Client; onBack: () => void; onSelectOrder: (order: Order) => void; token: string };
 
@@ -17,6 +19,8 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
   const [phoneValue, setPhoneValue] = useState(client.phone || '');
   const [address, setAddress] = useState(client.address || '');
   const [facebookUrl, setFacebookUrl] = useState(client.facebookUrl || '');
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(client.tags?.map((tag) => tag.id) || []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -30,10 +34,11 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ type: 'client' | 'note'; note?: Note } | null>(null);
   const [createOrderVisible, setCreateOrderVisible] = useState(false);
   const phone = phoneValue.replace(/[^\d+]/g, '');
+  const displayedTags = tags.filter((tag) => selectedTagIds.includes(tag.id));
 
   useEffect(() => {
-    Promise.all([getClientOrders(token, client.id), getClientNotes(token, client.id)])
-      .then(([loadedOrders, loadedNotes]) => { setOrders(loadedOrders); setNotes(loadedNotes); })
+    Promise.all([getClientOrders(token, client.id), getClientNotes(token, client.id), getTags(token)])
+      .then(([loadedOrders, loadedNotes, loadedTags]) => { setOrders(loadedOrders); setNotes(loadedNotes); setTags(loadedTags); })
       .catch((requestError) => setNotesError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los datos del cliente'))
       .finally(() => setNotesLoading(false));
   }, [client.id, token]);
@@ -47,12 +52,13 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
     setError('');
     setSaving(true);
     try {
-      const updatedClient = await updateClient(token, client.id, { name, email, phone: phoneValue, address, facebookUrl });
+      const updatedClient = await updateClient(token, client.id, { name, email, phone: phoneValue, address, facebookUrl, tagIds: selectedTagIds });
       setName(updatedClient.name);
       setEmail(updatedClient.email || '');
       setPhoneValue(updatedClient.phone || '');
       setAddress(updatedClient.address || '');
       setFacebookUrl(updatedClient.facebookUrl || '');
+      setSelectedTagIds(updatedClient.tags?.map((tag) => tag.id) || selectedTagIds);
       setEditing(false);
       Alert.alert('Cliente actualizado', 'Los cambios se guardaron correctamente.');
     } catch (requestError) {
@@ -84,6 +90,7 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
     setPhoneValue(client.phone || '');
     setAddress(client.address || '');
     setFacebookUrl(client.facebookUrl || '');
+    setSelectedTagIds(client.tags?.map((tag) => tag.id) || []);
     setError('');
     setEditing(false);
   };
@@ -158,6 +165,11 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
         <View style={styles.nameRow}>
           <Text style={styles.title}>{name}</Text>
         </View>
+        {!editing && displayedTags.length ? <View style={styles.tagFilterRow}>
+          {displayedTags.map((tag) => <View key={tag.id} style={[styles.tagFilterButton, { backgroundColor: tag.color, borderColor: tag.color }]}>
+            <Text style={[styles.tagFilterButtonText, { color: getTagTextColor(tag.color) }]}>{tag.name}</Text>
+          </View>)}
+        </View> : null}
       </View>
       <View>
         {editing ? <>
@@ -165,6 +177,12 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
             <View style={styles.detailRowInfoFull}>
               <Text style={styles.label}>Nombre</Text>
               <TextInput onChangeText={setName} style={[styles.input, styles.detailInput]} value={name} />
+            </View>
+          </View>
+          <View style={styles.detailRow}>
+            <View style={styles.detailRowInfoFull}>
+              <Text style={styles.label}>Etiquetas</Text>
+              <TagPicker onChange={setSelectedTagIds} selectedIds={selectedTagIds} tags={tags} />
             </View>
           </View>
           <View style={styles.detailRow}>

@@ -2,18 +2,20 @@ import { Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { Client, createClient } from '../src/api';
+import { Client, createClient, Tag } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { clientFormModalStyles as modalStyles } from './ClientFormModal.styles';
+import { TagPicker } from './TagPicker';
 
-type ClientFormModalProps = { visible: boolean; token: string; onCancel: () => void; onCreated: (client: Client) => void };
+type ClientFormModalProps = { visible: boolean; token: string; tags: Tag[]; onCancel: () => void; onCreated: (client: Client) => void };
 
-export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientFormModalProps) {
+export function ClientFormModal({ visible, token, tags, onCancel, onCreated }: ClientFormModalProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [facebookUrl, setFacebookUrl] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,6 +26,7 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
       setPhone('');
       setAddress('');
       setFacebookUrl('');
+      setSelectedTagIds([]);
       setError('');
     }
   }, [visible]);
@@ -37,7 +40,7 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
     setError('');
     setSaving(true);
     try {
-      const client = await createClient(token, { name: name.trim(), email: email.trim(), phone: phone.trim(), address: address.trim(), facebookUrl: facebookUrl.trim() });
+      const client = await createClient(token, { name: name.trim(), email: email.trim(), phone: phone.trim(), address: address.trim(), facebookUrl: facebookUrl.trim(), tagIds: selectedTagIds });
       onCreated(client);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No se pudo crear el cliente');
@@ -66,6 +69,8 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
           <TextInput onChangeText={setAddress} placeholder="Dirección" placeholderTextColor={colors.textMuted} style={styles.input} value={address} />
           <Text style={styles.label}>Perfil de Facebook</Text>
           <TextInput autoCapitalize="none" keyboardType="url" onChangeText={setFacebookUrl} placeholder="https://facebook.com/..." placeholderTextColor={colors.textMuted} style={styles.input} value={facebookUrl} />
+          <Text style={styles.label}>Etiquetas</Text>
+          <TagPicker onChange={setSelectedTagIds} selectedIds={selectedTagIds} tags={tags} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={modalStyles.actions}>
             <Pressable disabled={saving} onPress={onCancel} style={[styles.secondaryButton, modalStyles.actionButton]}>

@@ -1,6 +1,7 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Order } from './Order';
 import { Note } from './Note';
+import { Tag } from './Tag';
 
 @Entity()
 export class Client {
@@ -21,6 +22,10 @@ export class Client {
 
   @Column({ nullable: true, type: 'text' })
   facebookUrl?: string | null;
+
+  @ManyToMany(() => Tag, (tag) => tag.clients)
+  @JoinTable()
+  tags!: Tag[];
 
   @OneToMany(() => Order, (order) => order.client)
   orders!: Order[];

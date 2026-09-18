@@ -4,7 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { faBars, faChartColumn, faClipboardList, faFileExport, faGaugeHigh, faRightFromBracket, faUserPlus, faUsers, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { Client, exportDatabase, getClients, getOrders, Order, Session } from '../src/api';
+import { Client, exportDatabase, getClients, getOrders, getTags, Order, Session, Tag } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { OrderList } from './OrderList';
 import { ClientFormModal } from './ClientFormModal';
@@ -16,6 +16,7 @@ type DashboardProps = { session: Session; onLogout: () => void; onOpenClients: (
 export function Dashboard({ session, onLogout, onOpenClients, onOpenOrders, onSelectClient, onSelectOrder }: DashboardProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [createOrderVisible, setCreateOrderVisible] = useState(false);
@@ -72,8 +73,8 @@ export function Dashboard({ session, onLogout, onOpenClients, onOpenOrders, onSe
   };
 
   useEffect(() => {
-    Promise.all([getClients(session.token), getOrders(session.token)])
-      .then(([loadedClients, loadedOrders]) => { setClients(loadedClients); setOrders(loadedOrders); })
+    Promise.all([getClients(session.token), getOrders(session.token), getTags(session.token)])
+      .then(([loadedClients, loadedOrders, loadedTags]) => { setClients(loadedClients); setOrders(loadedOrders); setTags(loadedTags); })
       .catch((requestError) => setError(requestError instanceof Error ? requestError.message : 'No se pudieron cargar los datos'))
       .finally(() => setLoading(false));
   }, [session.token]);
@@ -161,7 +162,7 @@ export function Dashboard({ session, onLogout, onOpenClients, onOpenOrders, onSe
           <Pressable accessibilityLabel="Cerrar menú" onPress={closeMenu} style={styles.drawerBackdrop} />
         </View>
       </Modal>
-      <ClientFormModal onCancel={() => setCreateClientVisible(false)} onCreated={handleClientCreated} token={session.token} visible={createClientVisible} />
+      <ClientFormModal onCancel={() => setCreateClientVisible(false)} onCreated={handleClientCreated} tags={tags} token={session.token} visible={createClientVisible} />
       <OrderFormModal clients={clients} onCancel={() => setCreateOrderVisible(false)} onCreated={handleOrderCreated} token={session.token} visible={createOrderVisible} />
     </View>
   );

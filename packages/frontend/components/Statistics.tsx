@@ -108,6 +108,7 @@ export function Statistics({ clients, onOpenClients, onOpenOrders, onSelectClien
           </View>
         ))}
       </View>
+      <Text style={styles.statisticsCaption}>Los ingresos usan el importe y la fecha de creación de cada pedido.</Text>
       <View style={styles.statisticsBlock}>
         <Text style={styles.sectionTitle}>Clientes con más pedidos</Text>
         {ordersByClient.length ? ordersByClient.map(({ client, count }) => (
@@ -126,7 +127,6 @@ export function Statistics({ clients, onOpenClients, onOpenOrders, onSelectClien
           </Pressable>
         )) : <Text style={styles.empty}>Todavía no hay clientes.</Text>}
       </View>
-      <Text style={styles.statisticsCaption}>Los ingresos usan el importe y la fecha de creación de cada pedido.</Text>
     </View>
   );
 }

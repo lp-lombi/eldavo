@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
 
 export type User = { id: number; username: string; role: string };
-export type Client = { id: number; name: string; email?: string | null; phone?: string | null; address?: string | null; facebookUrl?: string | null };
+export type Tag = { id: number; name: string; color: string };
+export type Client = { id: number; name: string; email?: string | null; phone?: string | null; address?: string | null; facebookUrl?: string | null; tags?: Tag[] };
 export type Order = { id: number; createdAt: string; clientId: number; title: string; value: number; completionDate?: string | null; observations?: string | null; status: 'pending' | 'resolved'; client?: { name: string } };
 export type Note = { id: number; text: string; createdAt: string };
 export type Session = { token: string; user: User };
@@ -31,7 +32,11 @@ export function login(username: string, password: string): Promise<Session> {
 export function getClients(token: string): Promise<Client[]> {
   return request<Client[]>('/clients', {}, token);
 }
-export function createClient(token: string, client: Omit<Client, 'id'>): Promise<Client> {
+export function getTags(token: string): Promise<Tag[]> { return request<Tag[]>('/tags', {}, token); }
+export function createTag(token: string, name: string, color: string): Promise<Tag> { return request<Tag>('/tags', { method: 'POST', body: JSON.stringify({ name, color }) }, token); }
+export function updateTag(token: string, tagId: number, name: string, color: string): Promise<Tag> { return request<Tag>(`/tags/${tagId}`, { method: 'PUT', body: JSON.stringify({ name, color }) }, token); }
+export function deleteTag(token: string, tagId: number): Promise<void> { return request<void>(`/tags/${tagId}`, { method: 'DELETE' }, token); }
+export function createClient(token: string, client: Omit<Client, 'id' | 'tags'> & { tagIds?: number[] }): Promise<Client> {
   return request<Client>('/clients', { method: 'POST', body: JSON.stringify(client) }, token);
 }
 
@@ -41,7 +46,7 @@ export async function exportDatabase(token: string): Promise<string> {
   return response.text();
 }
 
-export function updateClient(token: string, clientId: number, client: Omit<Client, 'id'>): Promise<Client> {
+export function updateClient(token: string, clientId: number, client: Omit<Client, 'id' | 'tags'> & { tagIds?: number[] }): Promise<Client> {
   return request<Client>(`/clients/${clientId}`, { method: 'PUT', body: JSON.stringify(client) }, token);
 }
 

@@ -127,6 +127,38 @@ test('updates all client fields', async () => {
   });
 });
 
+test('creates, assigns, updates, and deletes client tags', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const tag = await request(app)
+    .post('/tags')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ color: '#ff8800', name: 'VIP' });
+  expect(tag.status).toBe(201);
+
+  const created = await request(app)
+    .post('/clients')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Ada Lovelace', tagIds: [tag.body.id] });
+  expect(created.status).toBe(201);
+  expect(tag.body.color).toBe('#ff8800');
+  expect(created.body.tags).toEqual([{ color: '#ff8800', id: tag.body.id, name: 'VIP' }]);
+
+  const updatedTag = await request(app)
+    .put(`/tags/${tag.body.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .send({ color: '#00aa55', name: 'Preferente' });
+  expect(updatedTag.status).toBe(200);
+
+  const listed = await request(app).get('/clients').set('Authorization', `Bearer ${token}`);
+  expect(listed.body[0].tags).toEqual([{ color: '#00aa55', id: tag.body.id, name: 'Preferente' }]);
+
+  const deleted = await request(app)
+    .delete(`/tags/${tag.body.id}`)
+    .set('Authorization', `Bearer ${token}`);
+  expect(deleted.status).toBe(204);
+});
+
 test('preserves a phone number that already has an international prefix', async () => {
   const app = createApp(dataSource);
   const token = await login(app);

@@ -8,6 +8,7 @@ import { createOrderRouter } from './routes/orders';
 import { requireAuth } from './auth';
 import { createAuthRouter } from './routes/auth';
 import { createExportRouter } from './routes/export';
+import { createTagRouter } from './routes/tags';
 
 export function createApp(dataSource: DataSource): express.Express {
   const app = express();
@@ -25,13 +26,14 @@ export function createApp(dataSource: DataSource): express.Express {
 
   app.use('/auth', createAuthRouter(dataSource));
   app.use('/clients', requireAuth, createClientRouter(dataSource));
+  app.use('/tags', requireAuth, createTagRouter(dataSource));
   app.use('/orders', requireAuth, createOrderRouter(dataSource));
   app.use('/export.csv', requireAuth, createExportRouter(dataSource));
 
   if (frontendDirectory) {
     app.use(express.static(frontendDirectory));
     app.use((request, response, next) => {
-      const isApiRequest = ['/health', '/auth', '/clients', '/orders', '/export.csv']
+      const isApiRequest = ['/health', '/auth', '/clients', '/tags', '/orders', '/export.csv']
         .some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`));
 
       if (request.method === 'GET' && !isApiRequest && request.accepts('html')) {

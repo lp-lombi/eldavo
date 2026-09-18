@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 import { Client } from '../entities/Client';
 import { Order } from '../entities/Order';
 import { Note } from '../entities/Note';
+import { Tag } from '../entities/Tag';
 
 function normalizePhone(phone?: string): string | null {
   const value = phone?.trim();
@@ -15,13 +16,14 @@ export function createClientRouter(dataSource: DataSource): Router {
   const repository = dataSource.getRepository(Client);
   const orderRepository = dataSource.getRepository(Order);
   const noteRepository = dataSource.getRepository(Note);
+  const tagRepository = dataSource.getRepository(Tag);
 
   router.get('/', async (_request, response) => {
-    response.json(await repository.find({ order: { id: 'ASC' } }));
+    response.json(await repository.find({ order: { id: 'ASC' }, relations: { tags: true } }));
   });
 
   router.get('/:id', async (request, response) => {
-    const client = await repository.findOneBy({ id: Number(request.params.id) });
+    const client = await repository.findOne({ where: { id: Number(request.params.id) }, relations: { tags: true } });
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
       return;
@@ -65,12 +67,13 @@ export function createClientRouter(dataSource: DataSource): Router {
   });
 
   router.post('/', async (request, response) => {
-    const { name, email, phone, address, facebookUrl } = request.body as {
+    const { name, email, phone, address, facebookUrl, tagIds } = request.body as {
       name?: string;
       email?: string;
       phone?: string;
       address?: string;
       facebookUrl?: string;
+      tagIds?: number[];
     };
 
     if (!name?.trim()) {
@@ -78,12 +81,14 @@ export function createClientRouter(dataSource: DataSource): Router {
       return;
     }
 
+    const tags = tagIds?.length ? await tagRepository.findByIds(tagIds) : [];
     const client = await repository.save(repository.create({
       name: name.trim(),
       email,
       phone: normalizePhone(phone),
       address,
       facebookUrl: facebookUrl?.trim() || null,
+      tags,
     }));
     response.status(201).json(client);
   });
@@ -95,12 +100,13 @@ export function createClientRouter(dataSource: DataSource): Router {
       return;
     }
 
-    const { name, email, phone, address, facebookUrl } = request.body as {
+    const { name, email, phone, address, facebookUrl, tagIds } = request.body as {
       name?: string;
       email?: string;
       phone?: string;
       address?: string;
       facebookUrl?: string;
+      tagIds?: number[];
     };
 
     if (!name?.trim()) {
@@ -113,6 +119,7 @@ export function createClientRouter(dataSource: DataSource): Router {
     client.phone = normalizePhone(phone);
     client.address = address?.trim() || null;
     client.facebookUrl = facebookUrl?.trim() || null;
+    client.tags = tagIds?.length ? await tagRepository.findByIds(tagIds) : [];
     response.json(await repository.save(client));
   });
 
