@@ -51,19 +51,20 @@ export function Statistics({ clients, onOpenClients, onOpenOrders, onSelectClien
     }, null);
     return { client, days: lastOrder ? daysSince(lastOrder) : null, lastOrder };
   }).filter((entry) => entry.lastOrder !== null).sort((first, second) => (second.days ?? 0) - (first.days ?? 0)).slice(0, 5);
+  const resolvedOrders = orders.filter((order) => order.status === 'resolved');
 
   const months = Array.from({ length: 6 }, (_, index) => {
     const date = new Date();
     date.setDate(1);
     date.setMonth(date.getMonth() - (5 - index));
     const key = monthKey(date);
-    return { amount: orders.filter((order) => monthKey(new Date(order.createdAt)) === key).reduce((total, order) => total + order.value, 0), label: monthLabel(date) };
+    return { amount: resolvedOrders.filter((order) => monthKey(new Date(order.createdAt)) === key).reduce((total, order) => total + order.value, 0), label: monthLabel(date) };
   });
   const weeks = Array.from({ length: 6 }, (_, index) => {
     const date = weekStart(new Date());
     date.setDate(date.getDate() - (5 - index) * 7);
     const key = weekKey(date);
-    return { amount: orders.filter((order) => weekKey(new Date(order.createdAt)) === key).reduce((total, order) => total + order.value, 0), label: weekLabel(date) };
+    return { amount: resolvedOrders.filter((order) => weekKey(new Date(order.createdAt)) === key).reduce((total, order) => total + order.value, 0), label: weekLabel(date) };
   });
   const periods = period === 'month' ? months : weeks;
   const maximumAmount = Math.max(1, ...periods.map((entry) => entry.amount));
@@ -72,23 +73,23 @@ export function Statistics({ clients, onOpenClients, onOpenOrders, onSelectClien
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Estadísticas</Text>
+        <Text style={styles.sectionTitle}>Estadísticas</Text>
       </View>
       <View style={styles.statisticsSummary}>
-        <Pressable accessibilityRole="button" onPress={onOpenClients} style={({ pressed }) => [styles.statisticsMetric, pressed && styles.buttonPressed]}>
-          <FontAwesomeIcon color={styles.statisticsMetricIcon.color} icon={faUsers} size={20} />
-          <Text style={styles.statisticsMetricValue}>{clients.length}</Text>
-          <Text style={styles.statisticsMetricLabel}>Clientes</Text>
-        </Pressable>
         <Pressable accessibilityRole="button" onPress={onOpenOrders} style={({ pressed }) => [styles.statisticsMetric, pressed && styles.buttonPressed]}>
           <FontAwesomeIcon color={styles.statisticsMetricIcon.color} icon={faListCheck} size={20} />
           <Text style={styles.statisticsMetricValue}>{orders.length}</Text>
           <Text style={styles.statisticsMetricLabel}>Pedidos</Text>
         </Pressable>
+        <Pressable accessibilityRole="button" onPress={onOpenClients} style={({ pressed }) => [styles.statisticsMetric, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.statisticsMetricIcon.color} icon={faUsers} size={20} />
+          <Text style={styles.statisticsMetricValue}>{clients.length}</Text>
+          <Text style={styles.statisticsMetricLabel}>Clientes</Text>
+        </Pressable>
       </View>
       <View style={styles.statisticsBlock}>
         <View style={styles.statisticsPeriodHeader}>
-          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Ingresos por {period === 'month' ? 'mes' : 'semana'}</Text>
+          <Text style={styles.sectionTitle}>Ingresos por {period === 'month' ? 'mes' : 'semana'}</Text>
           <View style={styles.statisticsPeriodToggle}>
             <Pressable accessibilityRole="button" accessibilityState={{ selected: period === 'week' }} onPress={() => setPeriod('week')} style={[styles.statisticsPeriodButton, period === 'week' && styles.statisticsPeriodButtonActive]}>
               <Text style={[styles.statisticsPeriodButtonText, period === 'week' && styles.statisticsPeriodButtonTextActive]}>Semana</Text>
@@ -108,7 +109,7 @@ export function Statistics({ clients, onOpenClients, onOpenOrders, onSelectClien
           </View>
         ))}
       </View>
-      <Text style={styles.statisticsCaption}>Los ingresos usan el importe y la fecha de creación de cada pedido.</Text>
+      <Text style={styles.statisticsCaption}>Los ingresos incluyen solamente pedidos resueltos y usan su importe y fecha de creación.</Text>
       <View style={styles.statisticsBlock}>
         <Text style={styles.sectionTitle}>Clientes con más pedidos</Text>
         {ordersByClient.length ? ordersByClient.map(({ client, count }) => (

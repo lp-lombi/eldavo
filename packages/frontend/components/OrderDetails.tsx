@@ -90,9 +90,6 @@ export function OrderDetails({ order, onBack, onUpdated, token }: OrderDetailsPr
         <Text style={styles.eyebrow}>Detalle del pedido</Text>
         <View style={styles.nameRow}>
           <Text style={styles.title}>{order.title || `Pedido #${order.id}`}</Text>
-          {!editing ? <Pressable accessibilityLabel="Editar pedido" onPress={() => { setError(''); setEditing(true); }} style={styles.editIconButton}>
-            <FontAwesomeIcon color={colors.accent} icon={faPen} size={17} />
-          </Pressable> : null}
         </View>
       </View>
       <View>
@@ -105,7 +102,7 @@ export function OrderDetails({ order, onBack, onUpdated, token }: OrderDetailsPr
         <View style={styles.detailRow}>
           <View style={styles.detailRowInfoFull}>
             <Text style={styles.label}>Estado</Text>
-            <Text style={styles.detailValue}>{order.status === 'pending' ? 'Pendiente' : 'Resuelto'}</Text>
+            <Text style={[styles.orderStatusValue, order.status === 'pending' ? styles.orderPendingText : styles.orderResolvedText]}>{order.status === 'pending' ? 'Pendiente' : 'Resuelto'}</Text>
           </View>
         </View>
         <View style={styles.detailRow}>
@@ -126,35 +123,35 @@ export function OrderDetails({ order, onBack, onUpdated, token }: OrderDetailsPr
             {editing ? <DeliveryDatePicker onChange={setCompletionDate} value={completionDate} /> : <Text style={styles.detailValue}>{order.completionDate ? new Date(order.completionDate).toLocaleDateString('es-AR') : 'Sin fecha de entrega'}</Text>}
           </View>
         </View>
-        <View style={styles.detailRow}>
-          <View style={styles.detailRowInfoFull}>
-            <Text style={styles.label}>Observaciones</Text>
-            {editing ? <TextInput multiline onChangeText={setObservations} placeholder="Sin observaciones" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput, styles.detailTextarea]} textAlignVertical="top" value={observations} /> : <Text style={styles.detailValue}>{order.observations || 'Sin observaciones'}</Text>}
-          </View>
+        <View style={styles.orderObservationsBlock}>
+          <Text style={styles.label}>Observaciones</Text>
+          {editing ? <TextInput multiline onChangeText={setObservations} placeholder="Sin observaciones" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput, styles.detailTextarea]} textAlignVertical="top" value={observations} /> : <Text style={styles.orderObservations}>{order.observations || 'Sin observaciones'}</Text>}
         </View>
       </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {editing ? <>
-        <Pressable disabled={saving || deleting} onPress={saveChanges} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
-          <View style={styles.buttonContent}>
-            <FontAwesomeIcon color={styles.buttonText.color} icon={faFloppyDisk} size={16} />
-            <Text style={styles.buttonText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
-          </View>
+      {!editing ? <View style={styles.dashboardActions}>
+        <Pressable accessibilityLabel="Editar pedido" onPress={() => { setError(''); setEditing(true); }} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faPen} size={22} />
+          <Text style={styles.dashboardActionText}>Editar pedido</Text>
         </Pressable>
-        <Pressable disabled={saving || deleting} onPress={cancelEditing} style={styles.secondaryButton}>
-          <Text style={styles.secondaryText}>Cancelar</Text>
+        <Pressable accessibilityLabel={order.status === 'pending' ? 'Marcar pedido como resuelto' : 'Reabrir pedido'} onPress={toggleStatus} style={({ pressed }) => [styles.dashboardAction, order.status === 'pending' ? styles.orderActionPending : styles.orderActionResolved, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={order.status === 'pending' ? styles.orderPendingActionIcon.color : styles.orderResolvedActionIcon.color} icon={order.status === 'pending' ? faCircleCheck : faRotateLeft} size={22} />
+          <Text style={[styles.dashboardActionText, order.status === 'pending' ? styles.orderPendingActionText : styles.orderResolvedActionText]}>{order.status === 'pending' ? 'Marcar resuelto' : 'Reabrir pedido'}</Text>
         </Pressable>
-        <Pressable disabled={saving || deleting} onPress={() => setDeleteConfirmationVisible(true)} style={styles.deleteButton}>
-          <View style={styles.buttonContent}>
-            <FontAwesomeIcon color={styles.deleteText.color} icon={faTrash} size={16} />
-            <Text style={styles.deleteText}>{deleting ? 'Eliminando...' : 'Eliminar pedido'}</Text>
-          </View>
+      </View> : <View style={styles.dashboardActions}>
+        <Pressable disabled={saving || deleting} onPress={saveChanges} style={({ pressed }) => [styles.dashboardAction, styles.orderActionSave, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.orderSaveActionIcon.color} icon={faFloppyDisk} size={22} />
+          <Text style={[styles.dashboardActionText, styles.orderSaveActionText]}>{saving ? 'Guardando' : 'Guardar'}</Text>
         </Pressable>
-      </> : null}
-      <Pressable onPress={toggleStatus} style={styles.orderStatusButton}>
-        <FontAwesomeIcon color={styles.orderStatusText.color} icon={order.status === 'pending' ? faCircleCheck : faRotateLeft} size={14} />
-        <Text style={styles.orderStatusText}>{order.status === 'pending' ? 'Marcar resuelto' : 'Reabrir pedido'}</Text>
-      </Pressable>
+        <Pressable disabled={saving || deleting} onPress={cancelEditing} style={({ pressed }) => [styles.dashboardAction, styles.orderActionCancel, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.orderCancelActionIcon.color} icon={faRotateLeft} size={22} />
+          <Text style={[styles.dashboardActionText, styles.orderCancelActionText]}>Cancelar</Text>
+        </Pressable>
+        <Pressable disabled={saving || deleting} onPress={() => setDeleteConfirmationVisible(true)} style={({ pressed }) => [styles.dashboardAction, styles.orderActionDelete, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.orderDeleteActionIcon.color} icon={faTrash} size={22} />
+          <Text style={[styles.dashboardActionText, styles.orderDeleteActionText]}>{deleting ? 'Eliminando' : 'Eliminar'}</Text>
+        </Pressable>
+      </View>}
       <ConfirmationModal
         message={`¿Querés eliminar ${order.title || `el pedido #${order.id}`}?`}
         onCancel={() => setDeleteConfirmationVisible(false)}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { faArrowLeft, faUserPlus } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faTag, faUserPlus } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Client, getClients, getOrders, getTags, Order, Tag } from '../src/api';
 import { colors, styles } from '../src/theme';
@@ -70,6 +70,7 @@ export function ClientsScreen({ onBack, onSelectClient, token }: ClientsScreenPr
               <Text style={styles.dashboardActionText}>Nuevo cliente</Text>
             </Pressable>
             <Pressable accessibilityLabel="Administrar etiquetas" onPress={() => setTagsVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+              <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faTag} size={22} />
               <Text style={styles.dashboardActionText}>Administrar etiquetas</Text>
             </Pressable>
           </View>

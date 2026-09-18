@@ -9,7 +9,7 @@ export function OrderList({ orders, onSelectOrder, title = 'Pedidos' }: OrderLis
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>{title} ({orders.length})</Text>
+        <Text style={styles.sectionTitle}>{title} ({orders.length})</Text>
       </View>
       {orders.length ? orders.map((order) => (
     <OrderCard key={order.id} onPress={onSelectOrder} order={order} />

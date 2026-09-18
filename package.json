@@ -11,6 +11,7 @@
     "build:backend": "npm run build --workspace @eldavo/backend",
     "build:web": "npm run build:web --workspace @eldavo/frontend && node scripts/copy-web.js && npm run build:backend",
     "dev:backend": "npm run dev --workspace @eldavo/backend",
+    "seed:backend": "npm run seed --workspace @eldavo/backend",
     "start:backend": "npm run start --workspace @eldavo/backend",
     "dev:frontend": "npm run start --workspace @eldavo/frontend",
     "web:frontend": "npm run web --workspace @eldavo/frontend",

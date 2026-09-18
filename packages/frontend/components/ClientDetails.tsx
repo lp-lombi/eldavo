@@ -1,6 +1,6 @@
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faRotateLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faFacebook, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Client, createClientNote, deleteClient, deleteClientNote, getClientNotes, getClientOrders, getTags, Note, Order, Tag, updateClient } from '../src/api';
@@ -10,6 +10,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { OrderCard } from './OrderCard';
 import { OrderFormModal } from './OrderFormModal';
 import { TagPicker } from './TagPicker';
+import { faNoteSticky } from '@fortawesome/free-solid-svg-icons/faNoteSticky';
 
 type ClientDetailsProps = { client: Client; onBack: () => void; onSelectOrder: (order: Order) => void; token: string };
 
@@ -258,28 +259,29 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
       </View> : null}
       {editing ? <>
         {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable disabled={saving || deleting} onPress={saveChanges} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
-          <View style={styles.buttonContent}>
-            <FontAwesomeIcon color={styles.buttonText.color} icon={faFloppyDisk} size={16} />
-            <Text style={styles.buttonText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
-          </View>
-        </Pressable>
-        <Pressable disabled={saving || deleting} onPress={cancelEditing} style={styles.secondaryButton}>
-          <Text style={styles.secondaryText}>Cancelar</Text>
-        </Pressable>
+        <View style={styles.dashboardActions}>
+          <Pressable disabled={saving || deleting} onPress={saveChanges} style={({ pressed }) => [styles.dashboardAction, styles.orderActionSave, pressed && styles.buttonPressed]}>
+            <FontAwesomeIcon color={styles.orderSaveActionIcon.color} icon={faFloppyDisk} size={22} />
+            <Text style={[styles.dashboardActionText, styles.orderSaveActionText]}>{saving ? 'Guardando' : 'Guardar'}</Text>
+          </Pressable>
+          <Pressable disabled={saving || deleting} onPress={cancelEditing} style={({ pressed }) => [styles.dashboardAction, styles.orderActionCancel, pressed && styles.buttonPressed]}>
+            <FontAwesomeIcon color={styles.orderCancelActionIcon.color} icon={faRotateLeft} size={22} />
+            <Text style={[styles.dashboardActionText, styles.orderCancelActionText]}>Cancelar</Text>
+          </Pressable>
+          <Pressable disabled={saving || deleting} onPress={confirmDelete} style={({ pressed }) => [styles.dashboardAction, styles.orderActionDelete, pressed && styles.buttonPressed]}>
+            <FontAwesomeIcon color={styles.orderDeleteActionIcon.color} icon={faTrash} size={22} />
+            <Text style={[styles.dashboardActionText, styles.orderDeleteActionText]}>{deleting ? 'Eliminando' : 'Eliminar'}</Text>
+          </Pressable>
+        </View>
       </> : null}
       {!editing && error ? <Text style={styles.error}>{error}</Text> : null}
-      {editing ? <Pressable disabled={saving || deleting} onPress={confirmDelete} style={styles.deleteButton}>
-          <View style={styles.buttonContent}>
-            <FontAwesomeIcon color={styles.deleteText.color} icon={faTrash} size={16} />
-            <Text style={styles.deleteText}>{deleting ? 'Eliminando...' : 'Eliminar cliente'}</Text>
-          </View>
-        </Pressable> : null}
       <View style={styles.detailSection}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeading}>
-            <FontAwesomeIcon color={colors.accent} icon={faClipboardList} size={18} />
-            <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Pedidos ({orders.length})</Text>
+            <Text style={[styles.sectionTitle]}>
+              <FontAwesomeIcon color="#ffffff" icon={faClipboardList} size={16} />
+              {" "}
+              Pedidos ({orders.length})</Text>
           </View>
         </View>
         {notesLoading ? <Text style={styles.empty}>Cargando pedidos...</Text> : orders.length ? orders.map((order) => (
@@ -287,7 +289,12 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
         )) : <Text style={styles.empty}>Este cliente todavía no tiene pedidos.</Text>}
       </View>
       <View style={styles.detailSection}>
-        <Text style={styles.sectionTitle}>Notas ({notes.length})</Text>
+        <View style={styles.sectionHeading}>
+          <Text style={styles.sectionTitle}>
+            <FontAwesomeIcon color="#ffffff" icon={faNoteSticky} size={16} />
+            {" "}
+            Notas ({notes.length})</Text>
+        </View>
         <View style={styles.noteComposer}>
           <TextInput multiline onChangeText={setNoteText} placeholder="Escribí una nota..." placeholderTextColor={colors.textMuted} style={styles.noteInput} value={noteText} />
           <Pressable accessibilityLabel="Enviar nota" disabled={addingNote || !noteText.trim()} onPress={addNote} style={({ pressed }) => [styles.noteAddButton, pressed && styles.buttonPressed, !noteText.trim() && styles.buttonDisabled]}>

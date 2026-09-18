@@ -81,6 +81,14 @@ npm run build
 
 Los tests usan SQLite en memoria. La ejecucion normal usa `eldavo.db`, que se crea automaticamente.
 
+Para cargar datos de prueba (80 clientes, 40 pedidos, etiquetas y notas) ejecuta:
+
+```bash
+npm run seed:backend
+```
+
+El seeder reemplaza solamente los registros de prueba identificados por sus prefijos y puede ejecutarse varias veces.
+
 Los comandos ejecutados desde la raiz se delegan al paquete backend. Tambien pueden ejecutarse desde `packages/backend`.
 
 ## Endpoints
