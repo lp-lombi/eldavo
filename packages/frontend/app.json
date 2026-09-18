@@ -11,7 +11,9 @@
       "web"
     ],
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000"
     },
     "extra": {
       "eas": {

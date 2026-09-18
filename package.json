@@ -3,7 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "description": "",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "main": "index.js",
   "scripts": {
     "build:backend": "npm run build --workspace @eldavo/backend",
@@ -19,5 +21,8 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "@react-native-community/datetimepicker": "8.4.1"
+  }
 }

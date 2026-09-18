@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { Client, createOrder, Order } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { clientFormModalStyles as modalStyles } from './ClientFormModal.styles';
+import { DeliveryDatePicker } from './DeliveryDatePicker';
 
 type OrderFormModalProps = { clients: Client[]; initialClient?: Client; visible: boolean; token: string; onCancel: () => void; onCreated: (order: Order) => void };
 
@@ -100,7 +101,7 @@ export function OrderFormModal({ clients, initialClient, visible, token, onCance
           <Text style={styles.label}>Importe</Text>
           <TextInput keyboardType="decimal-pad" onChangeText={setValue} placeholder="0" placeholderTextColor={colors.textMuted} style={styles.input} value={value} />
           <Text style={styles.label}>Fecha de entrega</Text>
-          <TextInput keyboardType="numbers-and-punctuation" onChangeText={setCompletionDate} placeholder="AAAA-MM-DD" placeholderTextColor={colors.textMuted} style={styles.input} value={completionDate} />
+          <DeliveryDatePicker onChange={setCompletionDate} value={completionDate} />
           <Text style={styles.label}>Observaciones</Text>
           <TextInput multiline onChangeText={setObservations} placeholder="Sin observaciones" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailTextarea]} textAlignVertical="top" value={observations} />
           {error ? <Text style={styles.error}>{error}</Text> : null}

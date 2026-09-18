@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { deleteOrder, Order, updateOrder } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { ConfirmationModal } from './ConfirmationModal';
+import { DeliveryDatePicker } from './DeliveryDatePicker';
 
 type OrderDetailsProps = { order: Order; onBack: () => void; onUpdated: (order: Order) => void; token: string };
 
@@ -122,7 +123,7 @@ export function OrderDetails({ order, onBack, onUpdated, token }: OrderDetailsPr
         <View style={styles.detailRow}>
           <View style={styles.detailRowInfoFull}>
             <Text style={styles.label}>Fecha de entrega</Text>
-            {editing ? <TextInput keyboardType="numbers-and-punctuation" onChangeText={setCompletionDate} placeholder="AAAA-MM-DD" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={completionDate} /> : <Text style={styles.detailValue}>{order.completionDate ? new Date(order.completionDate).toLocaleDateString('es-AR') : 'Sin fecha de entrega'}</Text>}
+            {editing ? <DeliveryDatePicker onChange={setCompletionDate} value={completionDate} /> : <Text style={styles.detailValue}>{order.completionDate ? new Date(order.completionDate).toLocaleDateString('es-AR') : 'Sin fecha de entrega'}</Text>}
           </View>
         </View>
         <View style={styles.detailRow}>

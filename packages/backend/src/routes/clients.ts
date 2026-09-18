@@ -65,11 +65,12 @@ export function createClientRouter(dataSource: DataSource): Router {
   });
 
   router.post('/', async (request, response) => {
-    const { name, email, phone, address } = request.body as {
+    const { name, email, phone, address, facebookUrl } = request.body as {
       name?: string;
       email?: string;
       phone?: string;
       address?: string;
+      facebookUrl?: string;
     };
 
     if (!name?.trim()) {
@@ -82,6 +83,7 @@ export function createClientRouter(dataSource: DataSource): Router {
       email,
       phone: normalizePhone(phone),
       address,
+      facebookUrl: facebookUrl?.trim() || null,
     }));
     response.status(201).json(client);
   });
@@ -93,11 +95,12 @@ export function createClientRouter(dataSource: DataSource): Router {
       return;
     }
 
-    const { name, email, phone, address } = request.body as {
+    const { name, email, phone, address, facebookUrl } = request.body as {
       name?: string;
       email?: string;
       phone?: string;
       address?: string;
+      facebookUrl?: string;
     };
 
     if (!name?.trim()) {
@@ -109,6 +112,7 @@ export function createClientRouter(dataSource: DataSource): Router {
     client.email = email?.trim() || null;
     client.phone = normalizePhone(phone);
     client.address = address?.trim() || null;
+    client.facebookUrl = facebookUrl?.trim() || null;
     response.json(await repository.save(client));
   });
 

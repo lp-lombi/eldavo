@@ -19,6 +19,9 @@ export class Client {
   @Column({ nullable: true, type: 'text' })
   address?: string | null;
 
+  @Column({ nullable: true, type: 'text' })
+  facebookUrl?: string | null;
+
   @OneToMany(() => Order, (order) => order.client)
   orders!: Order[];
 

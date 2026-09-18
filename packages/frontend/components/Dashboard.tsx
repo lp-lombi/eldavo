@@ -91,34 +91,29 @@ export function Dashboard({ session, onLogout, onOpenClients, onOpenOrders, onSe
         <Text style={styles.appName}>Eldavo</Text>
       </View>
       <ScrollView ref={scrollViewRef} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>Panel principal</Text>
-            <Text style={styles.title}>Hola, {session.user.username}.</Text>
-            <Text style={styles.subtitle}>Resumen de tu actividad reciente.</Text>
+        <View style={styles.dashboardActionsSection}>
+          <View style={styles.dashboardActions}>
+            <Pressable accessibilityLabel="Nuevo pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+              <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faClipboardList} size={22} />
+              <Text style={styles.dashboardActionText}>Nuevo pedido</Text>
+            </Pressable>
+            <Pressable accessibilityLabel="Nuevo cliente" onPress={() => setCreateClientVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+              <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faUserPlus} size={22} />
+              <Text style={styles.dashboardActionText}>Nuevo cliente</Text>
+            </Pressable>
           </View>
-        </View>
-        <View style={styles.dashboardActions}>
-          <Pressable accessibilityLabel="Nuevo pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
-            <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faClipboardList} size={22} />
-            <Text style={styles.dashboardActionText}>Nuevo pedido</Text>
-          </Pressable>
-          <Pressable accessibilityLabel="Nuevo cliente" onPress={() => setCreateClientVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
-            <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faUserPlus} size={22} />
-            <Text style={styles.dashboardActionText}>Nuevo cliente</Text>
-          </Pressable>
         </View>
         {loading ? <ActivityIndicator color={colors.accent} style={styles.loading} /> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {!loading && !error ? <>
-          <View onLayout={({ nativeEvent }) => { ordersOffset.current = nativeEvent.layout.y; }}>
-            <OrderList onSelectOrder={onSelectOrder} orders={nearestOrders} pendingOnly totalCount={pendingOrders.length} />
+          <View onLayout={({ nativeEvent }) => { ordersOffset.current = nativeEvent.layout.y; }} style={styles.dashboardOrdersSection}>
+            <OrderList onSelectOrder={onSelectOrder} orders={nearestOrders} title="Pedidos pendientes" />
             {pendingOrders.length > nearestOrders.length ? <Pressable onPress={onOpenOrders} style={styles.viewMoreButton}>
               <Text style={styles.viewMoreText}>Ver todos los pedidos</Text>
             </Pressable> : null}
           </View>
           <View onLayout={({ nativeEvent }) => { statisticsOffset.current = nativeEvent.layout.y; }}>
-            <Statistics clients={clients} onSelectClient={onSelectClient} orders={orders} />
+            <Statistics clients={clients} onOpenClients={onOpenClients} onOpenOrders={onOpenOrders} onSelectClient={onSelectClient} orders={orders} />
           </View>
         </> : null}
       </ScrollView>

@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, SafeAreaView, StatusBar as NativeStatusBar } from 'react-native';
 import { ClientDetails } from './components/ClientDetails';
 import { ClientsScreen } from './components/ClientsScreen';
@@ -16,6 +16,16 @@ export default function App() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [clientsScreenOpen, setClientsScreenOpen] = useState(false);
   const [ordersScreenOpen, setOrdersScreenOpen] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    document.documentElement.style.backgroundColor = colors.background;
+    document.documentElement.style.setProperty('overscroll-behavior-y', 'none');
+    document.body.style.backgroundColor = colors.background;
+    document.body.style.setProperty('overscroll-behavior-y', 'none');
+    document.getElementById('root')?.style.setProperty('background-color', colors.background);
+  }, []);
 
   const logout = () => {
     setSession(null);

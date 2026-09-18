@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 export type User = { id: number; username: string; role: string };
-export type Client = { id: number; name: string; email?: string | null; phone?: string | null; address?: string | null };
+export type Client = { id: number; name: string; email?: string | null; phone?: string | null; address?: string | null; facebookUrl?: string | null };
 export type Order = { id: number; createdAt: string; clientId: number; title: string; value: number; completionDate?: string | null; observations?: string | null; status: 'pending' | 'resolved'; client?: { name: string } };
 export type Note = { id: number; text: string; createdAt: string };
 export type Session = { token: string; user: User };

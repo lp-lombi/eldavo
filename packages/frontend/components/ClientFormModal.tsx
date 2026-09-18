@@ -13,6 +13,7 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [facebookUrl, setFacebookUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,6 +23,7 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
       setEmail('');
       setPhone('');
       setAddress('');
+      setFacebookUrl('');
       setError('');
     }
   }, [visible]);
@@ -35,7 +37,7 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
     setError('');
     setSaving(true);
     try {
-      const client = await createClient(token, { name: name.trim(), email: email.trim(), phone: phone.trim(), address: address.trim() });
+      const client = await createClient(token, { name: name.trim(), email: email.trim(), phone: phone.trim(), address: address.trim(), facebookUrl: facebookUrl.trim() });
       onCreated(client);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No se pudo crear el cliente');
@@ -62,6 +64,8 @@ export function ClientFormModal({ visible, token, onCancel, onCreated }: ClientF
           <TextInput autoCapitalize="none" keyboardType="email-address" onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} style={styles.input} value={email} />
           <Text style={styles.label}>Dirección</Text>
           <TextInput onChangeText={setAddress} placeholder="Dirección" placeholderTextColor={colors.textMuted} style={styles.input} value={address} />
+          <Text style={styles.label}>Perfil de Facebook</Text>
+          <TextInput autoCapitalize="none" keyboardType="url" onChangeText={setFacebookUrl} placeholder="https://facebook.com/..." placeholderTextColor={colors.textMuted} style={styles.input} value={facebookUrl} />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={modalStyles.actions}>
             <Pressable disabled={saving} onPress={onCancel} style={[styles.secondaryButton, modalStyles.actionButton]}>

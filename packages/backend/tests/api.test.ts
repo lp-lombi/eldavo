@@ -78,7 +78,7 @@ test('creates and lists a client with optional contact data', async () => {
   const created = await request(app)
     .post('/clients')
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'Ada Lovelace', email: 'ada@example.com', phone: '555-0100', address: 'London' });
+    .send({ name: 'Ada Lovelace', email: 'ada@example.com', phone: '555-0100', address: 'London', facebookUrl: ' https://facebook.com/ada ' });
 
   expect(created.status).toBe(201);
 
@@ -90,6 +90,7 @@ test('creates and lists a client with optional contact data', async () => {
     email: 'ada@example.com',
     phone: '+549555-0100',
     address: 'London',
+    facebookUrl: 'https://facebook.com/ada',
   });
 });
 
@@ -114,7 +115,7 @@ test('updates all client fields', async () => {
   const response = await request(app)
     .put(`/clients/${created.body.id}`)
     .set('Authorization', `Bearer ${token}`)
-    .send({ name: 'Grace Hopper', email: 'grace@example.com', phone: '555-0199', address: 'New York' });
+    .send({ name: 'Grace Hopper', email: 'grace@example.com', phone: '555-0199', address: 'New York', facebookUrl: 'https://facebook.com/grace' });
 
   expect(response.status).toBe(200);
   expect(response.body).toMatchObject({
@@ -122,6 +123,7 @@ test('updates all client fields', async () => {
     email: 'grace@example.com',
     phone: '+549555-0199',
     address: 'New York',
+    facebookUrl: 'https://facebook.com/grace',
   });
 });
 

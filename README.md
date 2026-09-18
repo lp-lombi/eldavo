@@ -33,9 +33,19 @@ En el VPS, ejecuta el build completo después de cada actualización del código
 
 ```bash
 git pull origin main
-npm ci
+npm ci --no-audit --no-fund --maxsockets=1
 npm run build:web
 npm run start:backend
+```
+
+Usa `npm ci`, no `npm run ci`. Si `npm ci` termina simplemente con `Killed`, el sistema se quedó sin memoria. En una VPS con poca RAM, agrega swap antes de instalar:
+
+```bash
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+npm ci --no-audit --no-fund --maxsockets=1
 ```
 
 Si utilizas PM2 o systemd, reinicia el proceso después de `npm run build:web`. La web de producción usa la misma URL del backend para sus llamadas a la API.

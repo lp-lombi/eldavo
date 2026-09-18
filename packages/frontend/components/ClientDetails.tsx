@@ -1,8 +1,8 @@
 import { Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faClipboardList, faFloppyDisk, faMapLocationDot, faPaperPlane, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faWhatsapp } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 import { Client, createClientNote, deleteClient, deleteClientNote, getClientNotes, getClientOrders, Note, Order, updateClient } from '../src/api';
 import { colors, styles } from '../src/theme';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -16,6 +16,7 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
   const [email, setEmail] = useState(client.email || '');
   const [phoneValue, setPhoneValue] = useState(client.phone || '');
   const [address, setAddress] = useState(client.address || '');
+  const [facebookUrl, setFacebookUrl] = useState(client.facebookUrl || '');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -46,11 +47,12 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
     setError('');
     setSaving(true);
     try {
-      const updatedClient = await updateClient(token, client.id, { name, email, phone: phoneValue, address });
+      const updatedClient = await updateClient(token, client.id, { name, email, phone: phoneValue, address, facebookUrl });
       setName(updatedClient.name);
       setEmail(updatedClient.email || '');
       setPhoneValue(updatedClient.phone || '');
       setAddress(updatedClient.address || '');
+      setFacebookUrl(updatedClient.facebookUrl || '');
       setEditing(false);
       Alert.alert('Cliente actualizado', 'Los cambios se guardaron correctamente.');
     } catch (requestError) {
@@ -81,6 +83,7 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
     setEmail(client.email || '');
     setPhoneValue(client.phone || '');
     setAddress(client.address || '');
+    setFacebookUrl(client.facebookUrl || '');
     setError('');
     setEditing(false);
   };
@@ -92,6 +95,11 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
   const openAddressInMaps = () => {
     const trimmedAddress = address.trim();
     if (trimmedAddress) Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmedAddress)}`);
+  };
+
+  const openFacebookProfile = () => {
+    const trimmedUrl = facebookUrl.trim();
+    if (trimmedUrl) Linking.openURL(trimmedUrl);
   };
 
   const addNote = async () => {
@@ -149,9 +157,6 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
         <Text style={styles.eyebrow}>Detalle del cliente</Text>
         <View style={styles.nameRow}>
           <Text style={styles.title}>{name}</Text>
-          {!editing ? <Pressable accessibilityLabel="Editar cliente" onPress={() => { setError(''); setEditing(true); }} style={styles.editIconButton}>
-            <FontAwesomeIcon color={colors.accent} icon={faPen} size={17} />
-          </Pressable> : null}
         </View>
       </View>
       <View>
@@ -180,6 +185,12 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
               <TextInput onChangeText={setAddress} placeholder="Sin dirección registrada" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={address} />
             </View>
           </View>
+          <View style={styles.detailRow}>
+            <View style={styles.detailRowInfoFull}>
+              <Text style={styles.label}>Perfil de Facebook</Text>
+              <TextInput autoCapitalize="none" keyboardType="url" onChangeText={setFacebookUrl} placeholder="Sin perfil registrado" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailInput]} value={facebookUrl} />
+            </View>
+          </View>
         </> : <>
           <View style={styles.detailRow}>
             <View style={styles.detailRowInfo}>
@@ -188,6 +199,15 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
             </View>
             <Pressable accessibilityLabel="Abrir WhatsApp" disabled={!phone} onPress={openWhatsApp} style={({ pressed }) => [styles.whatsappButton, pressed && styles.buttonPressed, !phone && styles.buttonDisabled]}>
               <FontAwesomeIcon color={styles.whatsappText.color} icon={faWhatsapp} size={20} />
+            </Pressable>
+          </View>
+          <View style={styles.detailRow}>
+            <View style={styles.detailRowInfo}>
+              <Text style={styles.label}>Facebook</Text>
+              <Text style={styles.detailValue}>{facebookUrl || 'Sin perfil registrado'}</Text>
+            </View>
+            <Pressable accessibilityLabel="Abrir perfil de Facebook" disabled={!facebookUrl.trim()} onPress={openFacebookProfile} style={({ pressed }) => [styles.facebookButton, pressed && styles.buttonPressed, !facebookUrl.trim() && styles.buttonDisabled]}>
+              <FontAwesomeIcon color={styles.facebookText.color} icon={faFacebook} size={19} />
             </Pressable>
           </View>
           <View style={styles.detailRow}>
@@ -208,6 +228,16 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
           </View>
         </>}
       </View>
+      {!editing ? <View style={styles.dashboardActions}>
+        <Pressable accessibilityLabel="Nuevo pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faClipboardList} size={22} />
+          <Text style={styles.dashboardActionText}>Nuevo pedido</Text>
+        </Pressable>
+        <Pressable accessibilityLabel="Editar datos del cliente" onPress={() => { setError(''); setEditing(true); }} style={({ pressed }) => [styles.dashboardAction, pressed && styles.buttonPressed]}>
+          <FontAwesomeIcon color={styles.dashboardActionIcon.color} icon={faPen} size={22} />
+          <Text style={styles.dashboardActionText}>Editar datos</Text>
+        </Pressable>
+      </View> : null}
       {editing ? <>
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable disabled={saving || deleting} onPress={saveChanges} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
@@ -230,12 +260,9 @@ export function ClientDetails({ client,   onBack, onSelectOrder, token }: Client
       <View style={styles.detailSection}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeading}>
-          <FontAwesomeIcon color={colors.accent} icon={faClipboardList} size={18} />
-          <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Pedidos ({orders.length})</Text>
+            <FontAwesomeIcon color={colors.accent} icon={faClipboardList} size={18} />
+            <Text style={[styles.sectionTitle, styles.sectionTitleNoMargin]}>Pedidos ({orders.length})</Text>
           </View>
-          <Pressable accessibilityLabel="Agregar pedido" onPress={() => setCreateOrderVisible(true)} style={({ pressed }) => [styles.addButton, pressed && styles.buttonPressed]}>
-            <FontAwesomeIcon color={styles.addButtonText.color} icon={faPlus} size={16} />
-          </Pressable>
         </View>
         {notesLoading ? <Text style={styles.empty}>Cargando pedidos...</Text> : orders.length ? orders.map((order) => (
           <OrderCard key={order.id} onPress={onSelectOrder} order={order} />
