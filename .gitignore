@@ -4,3 +4,4 @@ dist/
 .env
 coverage/
 packages/backend/public/
+client_secret*

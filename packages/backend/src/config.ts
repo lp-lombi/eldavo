@@ -2,7 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
 
-const envPath = path.resolve(process.cwd(), '.env');
+const environmentCandidates = [
+  path.resolve(__dirname, '../../../.env'),
+  path.resolve(__dirname, '../../../../.env'),
+  path.resolve(__dirname, '../../.env'),
+  path.resolve(process.cwd(), '.env'),
+];
+const envPath = environmentCandidates.find((candidate, index) => environmentCandidates.indexOf(candidate) === index && fs.existsSync(candidate));
 const envTemplate = `PORT=3005
 DATABASE_PATH=eldavo.db
 ADMIN_USERNAME=admin
@@ -11,14 +17,22 @@ JWT_SECRET=change-this-secret
 `;
 
 export function loadEnvironment(): boolean {
-  if (!fs.existsSync(envPath)) {
-    fs.writeFileSync(envPath, envTemplate, 'utf8');
-    console.error(`No se encontro el archivo .env. Se creo en ${envPath}.`);
+  if (!envPath) {
+    const newEnvPath = path.resolve(process.cwd(), '.env');
+    fs.writeFileSync(newEnvPath, envTemplate, 'utf8');
+    console.error(`No se encontro el archivo .env. Se creo en ${newEnvPath}.`);
     console.error('Edita sus valores y vuelve a ejecutar npm run dev.');
     return false;
   }
 
-  dotenv.config({ path: envPath });
+  const loadedPaths = environmentCandidates.filter((candidate, index) => environmentCandidates.indexOf(candidate) === index && fs.existsSync(candidate));
+  for (const loadedPath of loadedPaths) {
+    const values = dotenv.parse(fs.readFileSync(loadedPath, 'utf8'));
+    for (const [name, value] of Object.entries(values)) {
+      const currentValue = process.env[name]?.trim();
+      if (!currentValue || currentValue.startsWith('change-this-')) process.env[name] = value;
+    }
+  }
   const requiredVariables = ['ADMIN_USERNAME', 'ADMIN_PASSWORD', 'JWT_SECRET'];
   const missingVariables = requiredVariables.filter((variable) => {
     const value = process.env[variable]?.trim();

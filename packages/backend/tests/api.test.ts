@@ -36,6 +36,34 @@ test('reports health', async () => {
   expect(response.body).toEqual({ status: 'ok' });
 });
 
+test('creates, updates, lists, and deletes stock items', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const created = await request(app).post('/stock').set('Authorization', `Bearer ${token}`).send({ name: 'Tornillos', quantity: 12, unit: 'cajas', minimumQuantity: 5 });
+  expect(created.status).toBe(201);
+  expect(created.body).toMatchObject({ name: 'Tornillos', quantity: 12, unit: 'cajas', minimumQuantity: 5 });
+  const updated = await request(app).put(`/stock/${created.body.id}`).set('Authorization', `Bearer ${token}`).send({ name: 'Tornillos grandes', quantity: 3, unit: 'cajas', minimumQuantity: 5 });
+  expect(updated.status).toBe(200);
+  expect(updated.body.quantity).toBe(3);
+  const removed = await request(app).delete(`/stock/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+  expect(removed.status).toBe(204);
+});
+
+test('consumes and reverses stock through a resolved order', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const stock = await request(app).post('/stock').set('Authorization', `Bearer ${token}`).send({ name: 'Cajas', quantity: 10, unit: 'unidades' });
+  const client = await request(app).post('/clients').set('Authorization', `Bearer ${token}`).send({ name: 'Cliente stock' });
+  const order = await request(app).post('/orders').set('Authorization', `Bearer ${token}`).send({ clientId: client.body.id, title: 'Salida', value: 100, status: 'resolved', stockItems: [{ stockItemId: stock.body.id, quantity: 3 }] });
+  expect(order.status).toBe(201);
+  expect((await request(app).get('/stock').set('Authorization', `Bearer ${token}`)).body[0].quantity).toBe(7);
+  await request(app).put(`/orders/${order.body.id}`).set('Authorization', `Bearer ${token}`).send({ status: 'pending' });
+  expect((await request(app).get('/stock').set('Authorization', `Bearer ${token}`)).body[0].quantity).toBe(10);
+  await request(app).put(`/orders/${order.body.id}`).set('Authorization', `Bearer ${token}`).send({ status: 'resolved' });
+  await request(app).delete(`/orders/${order.body.id}`).set('Authorization', `Bearer ${token}`);
+  expect((await request(app).get('/stock').set('Authorization', `Bearer ${token}`)).body[0].quantity).toBe(10);
+});
+
 test('requires authentication for protected endpoints', async () => {
   const response = await request(createApp(dataSource)).get('/clients');
 
@@ -58,6 +86,63 @@ test('rejects invalid credentials', async () => {
     .send({ username: 'admin', password: 'wrong-password' });
 
   expect(response.status).toBe(401);
+});
+
+test('allows a user to change their own password', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  expect((await request(app).put('/auth/password').set('Authorization', `Bearer ${token}`).send({ currentPassword: 'wrong-password', newPassword: 'new-password' })).status).toBe(401);
+  expect((await request(app).put('/auth/password').set('Authorization', `Bearer ${token}`).send({ currentPassword: 'test-password', newPassword: 'new-password' })).status).toBe(204);
+  expect((await request(app).post('/auth/login').send({ username: 'admin', password: 'test-password' })).status).toBe(401);
+  expect((await request(app).post('/auth/login').send({ username: 'admin', password: 'new-password' })).status).toBe(200);
+});
+
+test('allows only admins to create users and isolates their clients', async () => {
+  const app = createApp(dataSource);
+  const adminToken = await login(app);
+  const created = await request(app).post('/admin/users').set('Authorization', `Bearer ${adminToken}`).send({ username: 'sales', password: 'sales-password' });
+  expect(created.status).toBe(201);
+  expect(created.body).toMatchObject({ username: 'sales', role: 'user' });
+
+  const userLogin = await request(app).post('/auth/login').send({ username: 'sales', password: 'sales-password' });
+  expect(userLogin.status).toBe(200);
+  expect((await request(app).get('/clients').set('Authorization', `Bearer ${userLogin.body.token}`)).body).toEqual([]);
+  expect((await request(app).post('/admin/users').set('Authorization', `Bearer ${userLogin.body.token}`).send({ username: 'blocked', password: 'blocked-password' })).status).toBe(403);
+});
+
+test('creates and lists appointments for the authenticated owner', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const client = await request(app).post('/clients').set('Authorization', `Bearer ${token}`).send({ name: 'Cliente turno' });
+  const created = await request(app).post('/appointments').set('Authorization', `Bearer ${token}`).send({ clientId: client.body.id, title: 'Reunión inicial', startsAt: '2026-10-21T10:00:00.000Z', endsAt: '2026-10-21T11:00:00.000Z', description: 'Revisar propuesta' });
+  expect(created.status).toBe(201);
+  expect(created.body).toMatchObject({ title: 'Reunión inicial', client: { name: 'Cliente turno' }, status: 'scheduled' });
+
+  const listed = await request(app).get('/appointments').set('Authorization', `Bearer ${token}`);
+  expect(listed.status).toBe(200);
+  expect(listed.body).toHaveLength(1);
+  expect(listed.body[0].description).toBe('Revisar propuesta');
+});
+
+test('rejects invalid appointment ranges and keeps appointments private', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const invalid = await request(app).post('/appointments').set('Authorization', `Bearer ${token}`).send({ title: 'Turno inválido', startsAt: '2026-10-21T11:00:00.000Z', endsAt: '2026-10-21T10:00:00.000Z' });
+  expect(invalid.status).toBe(400);
+
+  const user = await request(app).post('/admin/users').set('Authorization', `Bearer ${token}`).send({ username: 'appointment-user', password: 'appointment-password' });
+  const userToken = (await request(app).post('/auth/login').send({ username: 'appointment-user', password: 'appointment-password' })).body.token;
+  expect((await request(app).get('/appointments').set('Authorization', `Bearer ${userToken}`)).body).toEqual([]);
+  expect(user.status).toBe(201);
+});
+
+test('deletes an appointment for its owner', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const created = await request(app).post('/appointments').set('Authorization', `Bearer ${token}`).send({ title: 'Turno a borrar', startsAt: '2026-10-21T10:00:00.000Z', endsAt: '2026-10-21T11:00:00.000Z' });
+  const removed = await request(app).delete(`/appointments/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+  expect(removed.status).toBe(204);
+  expect((await request(app).get('/appointments').set('Authorization', `Bearer ${token}`)).body).toEqual([]);
 });
 
 test('creates a client with only the required name', async () => {
@@ -376,4 +461,56 @@ test('rejects invalid order data', async () => {
     .send({ clientId: 1, value: 'invalid' });
 
   expect(response.status).toBe(400);
+});
+
+test('receives public booking requests without blocking until confirmation', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const existingClient = await request(app)
+    .post('/clients')
+    .set('Authorization', 'Bearer ' + token)
+    .send({ name: 'Cliente ya registrado', email: 'PUBLICO@example.com' });
+  expect(existingClient.status).toBe(201);
+  const profile = await request(app).get('/public-booking/admin');
+  expect(profile.status).toBe(200);
+
+  const publicRequest = await request(app)
+    .post('/public-booking/admin/requests')
+    .send({ name: 'Cliente público', email: 'publico@example.com', startsAt: '2026-10-22T10:00:00.000Z', endsAt: '2026-10-22T11:00:00.000Z' });
+  expect(publicRequest.status).toBe(201);
+  const pending = await request(app).get('/appointments').set('Authorization', 'Bearer ' + token);
+  expect(pending.status).toBe(200);
+  expect(pending.body).toHaveLength(0);
+
+  const requests = await request(app).get('/appointment-requests').set('Authorization', 'Bearer ' + token);
+  expect(requests.body).toHaveLength(1);
+  const confirmed = await request(app).post(`/appointment-requests/${requests.body[0].id}/confirm`).set('Authorization', 'Bearer ' + token);
+  expect(confirmed.status).toBe(201);
+  expect(confirmed.body.client.email).toBe('PUBLICO@example.com');
+  expect(confirmed.body.client.id).toBe(existingClient.body.id);
+  const clients = await request(app).get('/clients').set('Authorization', 'Bearer ' + token);
+  expect(clients.body.filter((client: { email: string }) => client.email.toLocaleLowerCase() === 'publico@example.com')).toHaveLength(1);
+  const appointments = await request(app).get('/appointments').set('Authorization', 'Bearer ' + token);
+  expect(appointments.body).toHaveLength(1);
+});
+
+test('returns one-hour public availability slots and rejects custom durations', async () => {
+  const app = createApp(dataSource);
+  const token = await login(app);
+  const appointment = await request(app)
+    .post('/appointments')
+    .set('Authorization', 'Bearer ' + token)
+    .send({ title: 'Ocupado', startsAt: '2099-10-22T10:00:00', endsAt: '2099-10-22T11:00:00' });
+  expect(appointment.status).toBe(201);
+
+  const availability = await request(app).get('/public-booking/admin/availability?date=2099-10-22');
+  expect(availability.status).toBe(200);
+  expect(availability.body).toHaveLength(9);
+  expect(availability.body.filter((slot: { available: boolean }) => !slot.available)).toHaveLength(1);
+  expect(availability.body.filter((slot: { available: boolean }) => slot.available)).toHaveLength(8);
+
+  const invalidDuration = await request(app)
+    .post('/public-booking/admin/requests')
+    .send({ name: 'Cliente', email: 'cliente@example.com', startsAt: '2099-10-22T09:00:00', endsAt: '2099-10-22T10:30:00' });
+  expect(invalidDuration.status).toBe(400);
 });

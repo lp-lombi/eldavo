@@ -1,5 +1,6 @@
-import { CreateDateColumn, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Client } from './Client';
+import { OrderStockItem } from './OrderStockItem';
 
 @Entity()
 export class Order {
@@ -30,4 +31,7 @@ export class Order {
 
   @Column({ type: 'text', default: 'pending' })
   status!: 'pending' | 'resolved';
+
+  @OneToMany(() => OrderStockItem, (stockItem) => stockItem.order)
+  stockItems!: OrderStockItem[];
 }

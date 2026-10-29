@@ -8,6 +8,9 @@ export class Client {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ type: 'integer', nullable: true })
+  ownerId?: number | null;
+
   @Column()
   name!: string;
 

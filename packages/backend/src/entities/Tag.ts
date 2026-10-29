@@ -6,6 +6,9 @@ export class Tag {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ type: 'integer', nullable: true })
+  ownerId?: number | null;
+
   @Column({ unique: true })
   name!: string;
 

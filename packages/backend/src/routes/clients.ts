@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { Client } from '../entities/Client';
 import { Order } from '../entities/Order';
 import { Note } from '../entities/Note';
@@ -11,28 +11,33 @@ function normalizePhone(phone?: string): string | null {
   return value.startsWith('+') ? value : `+549${value}`;
 }
 
+function publicClient(client: Client): Client {
+  return { ...client, tags: client.tags?.map(({ id, name, color }) => ({ id, name, color } as Tag)) };
+}
+
 export function createClientRouter(dataSource: DataSource): Router {
   const router = Router();
   const repository = dataSource.getRepository(Client);
   const orderRepository = dataSource.getRepository(Order);
   const noteRepository = dataSource.getRepository(Note);
   const tagRepository = dataSource.getRepository(Tag);
+  const ownerId = (request: { locals?: { user?: { id: number } } }) => request.locals?.user?.id;
 
-  router.get('/', async (_request, response) => {
-    response.json(await repository.find({ order: { id: 'ASC' }, relations: { tags: true } }));
+  router.get('/', async (request, response) => {
+    response.json((await repository.find({ where: { ownerId: ownerId(response) }, order: { id: 'ASC' }, relations: { tags: true } })).map(publicClient));
   });
 
   router.get('/:id', async (request, response) => {
-    const client = await repository.findOne({ where: { id: Number(request.params.id) }, relations: { tags: true } });
+    const client = await repository.findOne({ where: { id: Number(request.params.id), ownerId: ownerId(response) }, relations: { tags: true } });
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
       return;
     }
-    response.json(client);
+    response.json(publicClient(client));
   });
 
   router.get('/:id/notes', async (request, response) => {
-    const client = await repository.findOneBy({ id: Number(request.params.id) });
+    const client = await repository.findOneBy({ id: Number(request.params.id), ownerId: ownerId(response) });
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
       return;
@@ -42,7 +47,7 @@ export function createClientRouter(dataSource: DataSource): Router {
 
   router.post('/:id/notes', async (request, response) => {
     const clientId = Number(request.params.id);
-    const client = await repository.findOneBy({ id: clientId });
+    const client = await repository.findOneBy({ id: clientId, ownerId: ownerId(response) });
     const text = (request.body as { text?: string }).text;
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
@@ -81,7 +86,7 @@ export function createClientRouter(dataSource: DataSource): Router {
       return;
     }
 
-    const tags = tagIds?.length ? await tagRepository.findByIds(tagIds) : [];
+    const tags = tagIds?.length ? await tagRepository.find({ where: { id: In(tagIds), ownerId: ownerId(response) } }) : [];
     const client = await repository.save(repository.create({
       name: name.trim(),
       email,
@@ -89,12 +94,13 @@ export function createClientRouter(dataSource: DataSource): Router {
       address,
       facebookUrl: facebookUrl?.trim() || null,
       tags,
+      ownerId: ownerId(response),
     }));
-    response.status(201).json(client);
+    response.status(201).json(publicClient(client));
   });
 
   router.put('/:id', async (request, response) => {
-    const client = await repository.findOneBy({ id: Number(request.params.id) });
+    const client = await repository.findOneBy({ id: Number(request.params.id), ownerId: ownerId(response) });
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
       return;
@@ -119,13 +125,13 @@ export function createClientRouter(dataSource: DataSource): Router {
     client.phone = normalizePhone(phone);
     client.address = address?.trim() || null;
     client.facebookUrl = facebookUrl?.trim() || null;
-    client.tags = tagIds?.length ? await tagRepository.findByIds(tagIds) : [];
-    response.json(await repository.save(client));
+    client.tags = tagIds?.length ? await tagRepository.find({ where: { id: In(tagIds), ownerId: ownerId(response) } }) : [];
+    response.json(publicClient(await repository.save(client)));
   });
 
   router.delete('/:id', async (request, response) => {
     const clientId = Number(request.params.id);
-    const client = await repository.findOneBy({ id: clientId });
+    const client = await repository.findOneBy({ id: clientId, ownerId: ownerId(response) });
     if (!client) {
       response.status(404).json({ message: 'Client not found' });
       return;

@@ -5,10 +5,15 @@ import path from 'node:path';
 import { DataSource } from 'typeorm';
 import { createClientRouter } from './routes/clients';
 import { createOrderRouter } from './routes/orders';
-import { requireAuth } from './auth';
+import { requireAdmin, requireAuth } from './auth';
+import { createAdminRouter } from './routes/admin';
 import { createAuthRouter } from './routes/auth';
 import { createExportRouter } from './routes/export';
 import { createTagRouter } from './routes/tags';
+import { createStockRouter } from './routes/stock';
+import { createAppointmentRouter } from './routes/appointments';
+import { createPublicBookingRouter } from './routes/publicBooking';
+import { createAppointmentRequestRouter } from './routes/appointmentRequests';
 
 export function createApp(dataSource: DataSource): express.Express {
   const app = express();
@@ -25,15 +30,23 @@ export function createApp(dataSource: DataSource): express.Express {
   });
 
   app.use('/auth', createAuthRouter(dataSource));
+  app.use('/public-booking', createPublicBookingRouter(dataSource));
+  if (frontendDirectory) {
+    app.get('/admin', (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
+  }
+  app.use('/admin', requireAdmin, createAdminRouter(dataSource));
   app.use('/clients', requireAuth, createClientRouter(dataSource));
   app.use('/tags', requireAuth, createTagRouter(dataSource));
+  app.use('/stock', requireAuth, createStockRouter(dataSource));
   app.use('/orders', requireAuth, createOrderRouter(dataSource));
+  app.use('/appointments', requireAuth, createAppointmentRouter(dataSource));
+  app.use('/appointment-requests', requireAuth, createAppointmentRequestRouter(dataSource));
   app.use('/export.csv', requireAuth, createExportRouter(dataSource));
 
   if (frontendDirectory) {
     app.use(express.static(frontendDirectory));
     app.use((request, response, next) => {
-      const isApiRequest = ['/health', '/auth', '/clients', '/tags', '/orders', '/export.csv']
+      const isApiRequest = ['/health', '/auth', '/public-booking', '/admin/', '/clients', '/tags', '/stock', '/orders', '/appointments', '/appointment-requests', '/export.csv']
         .some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`));
 
       if (request.method === 'GET' && !isApiRequest && request.accepts('html')) {

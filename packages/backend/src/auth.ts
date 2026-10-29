@@ -19,13 +19,15 @@ export async function ensureAdminUser(dataSource: DataSource): Promise<void> {
 
   const repository = dataSource.getRepository(User);
   const existingUser = await repository.findOneBy({ username });
-  if (!existingUser) {
-    await repository.save(repository.create({
+  const admin = existingUser ?? await repository.save(repository.create({
       username,
       passwordHash: await bcrypt.hash(password, 12),
       role: UserRole.ADMIN,
     }));
-  }
+
+  await dataSource.query('UPDATE client SET ownerId = ? WHERE ownerId IS NULL', [admin.id]);
+  await dataSource.query('UPDATE stock_item SET ownerId = ? WHERE ownerId IS NULL', [admin.id]);
+  await dataSource.query('UPDATE tag SET ownerId = ? WHERE ownerId IS NULL', [admin.id]);
 }
 
 export async function authenticateUser(
@@ -61,9 +63,19 @@ export const requireAuth: RequestHandler = (request, response, next) => {
       response.status(401).json({ message: 'Invalid token' });
       return;
     }
-    response.locals.user = { id: Number(payload.sub), role: payload.role };
+    response.locals.user = { id: Number(payload.sub), role: payload.role as UserRole };
     next();
   } catch {
     response.status(401).json({ message: 'Invalid or expired token' });
   }
+};
+
+export const requireAdmin: RequestHandler = (request, response, next) => {
+  requireAuth(request, response, () => {
+    if (response.locals.user.role !== UserRole.ADMIN) {
+      response.status(403).json({ message: 'Administrator access required' });
+      return;
+    }
+    next();
+  });
 };

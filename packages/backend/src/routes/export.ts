@@ -16,10 +16,11 @@ export function createExportRouter(dataSource: DataSource): Router {
   const noteRepository = dataSource.getRepository(Note);
 
   router.get('/', async (_request, response) => {
+    const ownerId = response.locals.user.id;
     const [clients, orders, notes] = await Promise.all([
-      clientRepository.find({ order: { id: 'ASC' } }),
-      orderRepository.find({ relations: { client: true }, order: { id: 'ASC' } }),
-      noteRepository.find({ relations: { client: true }, order: { id: 'ASC' } }),
+      clientRepository.find({ where: { ownerId }, order: { id: 'ASC' } }),
+      orderRepository.find({ where: { client: { ownerId } }, relations: { client: true }, order: { id: 'ASC' } }),
+      noteRepository.find({ where: { client: { ownerId } }, relations: { client: true }, order: { id: 'ASC' } }),
     ]);
 
     const rows = [
