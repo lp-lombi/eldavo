@@ -77,6 +77,24 @@ export function PublicBookingScreen({ username }: Props) {
   const landingServices: LandingService[] = profile?.landingServices || [];
   const googleReviews = profile?.googleReviews || [];
 
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !profile) return;
+    const brandName = profile.publicBrandName || profile.username;
+    document.title = brandName;
+    if (!profile.brandLogo) return;
+    let favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    const createdFavicon = !favicon;
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      document.head.appendChild(favicon);
+    }
+    favicon.href = profile.brandLogo;
+    return () => {
+      if (createdFavicon) favicon?.remove();
+    };
+  }, [profile]);
+
   function goToBookingStep(step: number) {
     const nextStep = Math.max(0, Math.min(step, 3));
     bookingPagerRef.current?.scrollTo({ x: nextStep * bookingStepWidth, animated: true });
@@ -369,9 +387,9 @@ export function PublicBookingScreen({ username }: Props) {
       </Animated.View>
       <View style={publicStyles.publicFooter}>
         <View style={publicStyles.publicFooterContainer}>
-          <View style={publicStyles.publicFooterBrand}><Text style={publicStyles.publicFooterLogo}>eldavo</Text><Text style={publicStyles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
+          <View style={publicStyles.publicFooterBrand}><View style={publicStyles.publicBrand}>{profile.brandLogo ? <Image accessibilityLabel="Logo de la marca" source={{ uri: profile.brandLogo }} style={publicStyles.publicBrandLogo} /> : null}<Text style={publicStyles.publicFooterLogo}>{profile.publicBrandName || profile.username}</Text></View><Text style={publicStyles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
           <View style={publicStyles.publicFooterLinks}><Text style={publicStyles.publicFooterLink}>Sobre nosotros</Text><Text style={publicStyles.publicFooterLink}>Privacidad</Text><Text style={publicStyles.publicFooterLink}>Términos y condiciones</Text></View>
-          <Text style={publicStyles.publicFooterCopyright}>© {new Date().getFullYear()} Eldavo</Text>
+          <Text style={publicStyles.publicFooterCopyright}>© {new Date().getFullYear()} {profile.publicBrandName || profile.username}</Text>
         </View>
       </View>
       </Animated.ScrollView>

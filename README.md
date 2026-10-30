@@ -54,6 +54,8 @@ npm ci --no-audit --no-fund --maxsockets=1
 
 Si utilizas PM2 o systemd, reinicia el proceso después de `npm run build:web`. La web de producción usa la misma URL del backend para sus llamadas a la API.
 
+Las URLs públicas de la landing (`/<slug>`) incluyen metadatos Open Graph y Twitter generados por el backend para que WhatsApp y otros servicios puedan mostrar una vista previa al compartirlas. La imagen de la vista previa debe ser una URL pública `http` o `https`.
+
 En otra terminal, ejecuta el frontend:
 
 ```bash

@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/src/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "seed": "ts-node src/seed.ts",
     "start": "node dist/src/server.js",
