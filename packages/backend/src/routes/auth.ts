@@ -10,12 +10,23 @@ import { LandingService } from '../entities/LandingService';
 import { createGoogleOAuthClient, decryptToken, encryptToken, getGoogleAuthorizationUrl } from '../google';
 
 type GoogleReview = { author: string; text: string; rating: number; url?: string | null };
+type PublicContact = { type: 'whatsapp' | 'instagram' | 'facebook' | 'email'; value: string };
 
 function parseReviews(value?: string | null): GoogleReview[] {
   if (!value) return [];
   try {
     const reviews = JSON.parse(value) as unknown;
     return Array.isArray(reviews) ? reviews as GoogleReview[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseContacts(value?: string | null): PublicContact[] {
+  if (!value) return [];
+  try {
+    const contacts = JSON.parse(value) as unknown;
+    return Array.isArray(contacts) ? contacts as PublicContact[] : [];
   } catch {
     return [];
   }
@@ -28,7 +39,7 @@ export function createAuthRouter(dataSource: DataSource): Router {
 
   async function profileResponse(user: User) {
     const services = await landingServiceRepository.find({ where: { ownerId: user.id }, order: { sortOrder: 'ASC', id: 'ASC' } });
-    return { username: user.username, publicBrandName: user.publicBrandName, publicSlug: user.publicSlug || user.username, brandLogo: user.brandLogo, publicDescription: user.publicDescription, publicBookingEnabled: user.publicBookingEnabled, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, heroImage: user.heroImage, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, googleReviews: parseReviews(user.googleReviews), landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) };
+    return { username: user.username, publicBrandName: user.publicBrandName, publicSlug: user.publicSlug || user.username, brandLogo: user.brandLogo, publicDescription: user.publicDescription, publicBookingEnabled: user.publicBookingEnabled, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, heroImage: user.heroImage, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, googleReviews: parseReviews(user.googleReviews), publicContacts: parseContacts(user.publicContacts), landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) };
   }
 
   router.post('/login', async (request, response) => {
@@ -76,7 +87,7 @@ export function createAuthRouter(dataSource: DataSource): Router {
   });
 
   router.put('/profile', requireAuth, async (request, response) => {
-    const { aboutDescription, aboutTitle, brandLogo, googleReviews, heroDescription, heroImage, heroTitle, landingAbout, landingServices, landingTitle, publicBrandName, publicDescription, publicBookingEnabled, publicSlug } = request.body as { aboutDescription?: string | null; aboutTitle?: string | null; brandLogo?: string | null; googleReviews?: GoogleReview[]; heroDescription?: string | null; heroImage?: string | null; heroTitle?: string | null; landingAbout?: string | null; landingServices?: Array<{ name?: string; description?: string; image?: string | null }>; landingTitle?: string | null; publicBrandName?: string | null; publicDescription?: string | null; publicBookingEnabled?: boolean; publicSlug?: string | null };
+    const { aboutDescription, aboutTitle, brandLogo, googleReviews, heroDescription, heroImage, heroTitle, landingAbout, landingServices, landingTitle, publicBrandName, publicDescription, publicBookingEnabled, publicContacts, publicSlug } = request.body as { aboutDescription?: string | null; aboutTitle?: string | null; brandLogo?: string | null; googleReviews?: GoogleReview[]; heroDescription?: string | null; heroImage?: string | null; heroTitle?: string | null; landingAbout?: string | null; landingServices?: Array<{ name?: string; description?: string; image?: string | null }>; landingTitle?: string | null; publicBrandName?: string | null; publicDescription?: string | null; publicBookingEnabled?: boolean; publicContacts?: PublicContact[]; publicSlug?: string | null };
     if (publicDescription !== undefined && publicDescription !== null && typeof publicDescription !== 'string') {
       return response.status(400).json({ message: 'publicDescription must be text' });
     }
@@ -94,6 +105,7 @@ export function createAuthRouter(dataSource: DataSource): Router {
     if (heroImage !== undefined && heroImage !== null && typeof heroImage !== 'string') return response.status(400).json({ message: 'heroImage must be text' });
     if (brandLogo !== undefined && brandLogo !== null && typeof brandLogo !== 'string') return response.status(400).json({ message: 'brandLogo must be text' });
     if (publicBrandName !== undefined && publicBrandName !== null && typeof publicBrandName !== 'string') return response.status(400).json({ message: 'publicBrandName must be text' });
+    if (publicContacts !== undefined && (!Array.isArray(publicContacts) || publicContacts.length > 4 || publicContacts.some((contact) => !contact || !['whatsapp', 'instagram', 'facebook', 'email'].includes(contact.type) || typeof contact.value !== 'string' || !contact.value.trim()))) return response.status(400).json({ message: 'publicContacts must contain valid contact values' });
     if (publicSlug !== undefined && publicSlug !== null && (typeof publicSlug !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(publicSlug.trim()))) return response.status(400).json({ message: 'publicSlug must contain only lowercase letters, numbers, and hyphens' });
     if (aboutTitle !== undefined && aboutTitle !== null && typeof aboutTitle !== 'string') return response.status(400).json({ message: 'aboutTitle must be text' });
     if (aboutDescription !== undefined && aboutDescription !== null && typeof aboutDescription !== 'string') return response.status(400).json({ message: 'aboutDescription must be text' });
@@ -110,6 +122,7 @@ export function createAuthRouter(dataSource: DataSource): Router {
     user.publicBrandName = publicBrandName !== undefined ? publicBrandName?.trim() || null : user.publicBrandName;
     user.publicSlug = normalizedSlug;
     user.brandLogo = brandLogo !== undefined ? brandLogo?.trim() || null : user.brandLogo;
+    if (publicContacts !== undefined) user.publicContacts = JSON.stringify(publicContacts.map((contact) => ({ type: contact.type, value: contact.value.trim() })));
     if (publicDescription !== undefined) user.publicDescription = publicDescription?.trim() || null;
     if (publicBookingEnabled !== undefined) user.publicBookingEnabled = publicBookingEnabled;
     if (landingTitle !== undefined) user.landingTitle = landingTitle?.trim() || null;

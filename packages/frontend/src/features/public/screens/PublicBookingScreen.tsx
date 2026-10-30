@@ -1,15 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Image, ImageBackground, Linking, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { faGoogle } from '@fortawesome/free-brands-svg-icons';
+import { faFacebook, faGoogle, faInstagram, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
+import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import heroImage from '../../../assets/esmeralda.jpg';
-import { LandingService, PublicAvailabilitySlot } from '../../../services';
+import { LandingService, PublicAvailabilitySlot, PublicContact } from '../../../services';
 import { colors, spacing, styles } from '../../../shared';
 import { usePublicBooking } from '../hooks/usePublicBooking';
 import { publicStyles } from './PublicBookingScreen.styles';
 
 type Props = { username: string };
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
+
+function ContactItem({ contact }: { contact: PublicContact }) {
+  const icon = contact.type === 'whatsapp' ? faWhatsapp : contact.type === 'instagram' ? faInstagram : contact.type === 'facebook' ? faFacebook : faEnvelope;
+  const displayValue = contact.type === 'email'
+    ? contact.value
+    : contact.type === 'whatsapp'
+      ? contact.value
+      : `@${contact.value.replace(/^https?:\/\/(www\.)?(instagram|facebook)\.com\//i, '').replace(/^@/, '').replace(/\/$/, '')}`;
+  const url = contact.type === 'email'
+    ? `mailto:${contact.value}`
+    : contact.type === 'whatsapp'
+      ? `https://wa.me/${contact.value.replace(/\D/g, '')}`
+      : /^https?:\/\//i.test(contact.value) ? contact.value : `https://${contact.type}.com/${contact.value.replace(/^@/, '')}`;
+  return <Pressable accessibilityLabel={`Contactar: ${displayValue}`} onPress={() => void Linking.openURL(url)} style={publicStyles.publicContactItem}><FontAwesomeIcon color={colors.accent} icon={icon} size={22} /><Text style={publicStyles.publicContactLabel}>{displayValue}</Text></Pressable>;
+}
 
 function dateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -76,6 +92,7 @@ export function PublicBookingScreen({ username }: Props) {
   const aboutServiceStep = 298;
   const landingServices: LandingService[] = profile?.landingServices || [];
   const googleReviews = profile?.googleReviews || [];
+  const publicContacts = profile?.publicContacts || [];
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !profile) return;
@@ -329,7 +346,7 @@ export function PublicBookingScreen({ username }: Props) {
         </AnimatedImageBackground>
       <Animated.View onLayout={(event) => setAboutSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBand, { minHeight: sectionHeight }, appear([120, Math.max(121, viewportHeight * 0.75)])]}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Sobre nosotros</Text><Text style={publicStyles.publicSectionTitle}>{aboutTitle}</Text><Text style={publicStyles.publicSectionText}>{aboutDescription}</Text>{landingServices.length ? <><ScrollView contentContainerStyle={publicStyles.publicAboutServicesContent} horizontal onMouseEnter={() => { aboutServicesHoveredRef.current = true; }} onMouseLeave={() => { aboutServicesHoveredRef.current = false; }} onScroll={(event) => handleAboutServiceScroll(event.nativeEvent.contentOffset.x, event.nativeEvent.contentSize.width, event.nativeEvent.layoutMeasurement.width)} onMomentumScrollEnd={(event) => handleAboutServiceScrollEnd(event.nativeEvent.contentOffset.x)} ref={aboutServicesRef} scrollEventThrottle={16} showsHorizontalScrollIndicator={false} style={publicStyles.publicAboutServices}>{aboutCarouselItems.map((service, index) => <View key={`${index}-${service.id ?? service.name}`} style={publicStyles.publicAboutService}>{service.image ? <ImageBackground imageStyle={publicStyles.publicAboutServiceImage} source={{ uri: service.image }} style={publicStyles.publicAboutServiceImageContainer} /> : <View style={publicStyles.publicAboutServiceImageContainer} />}<View style={publicStyles.publicAboutServiceCopy}><Text style={publicStyles.publicAboutServiceTitle}>{service.name}</Text><Text style={publicStyles.publicAboutServiceDescription}>{service.description}</Text></View></View>)}</ScrollView><View style={publicStyles.publicAboutServiceDots}>{landingServices.map((service, index) => <Pressable accessibilityLabel={`Ir al servicio ${service.name}`} key={service.id ?? service.name} onPress={() => selectAboutService(index)} style={[publicStyles.publicAboutServiceDot, index === aboutServiceIndex && publicStyles.publicAboutServiceDotActive]} />)}</View></> : null}</View></Animated.View>
       {googleReviews.length ? <Animated.View onLayout={(event) => setReviewsSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicReviewsSection, { minHeight: sectionHeight }, appear([Math.max(0, viewportHeight * 0.75), Math.max(1, viewportHeight * 1.35)])]}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Reseñas</Text><Text style={publicStyles.publicReviewsTitle}>Lo que dicen nuestros clientes</Text><View style={publicStyles.publicReviewsGrid}>{googleReviews.map((review, index) => <View key={`${review.author}-${index}`} style={publicStyles.publicReviewCard}><Text style={publicStyles.publicReviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text><Text style={publicStyles.publicReviewText}>{review.text}</Text><Text style={publicStyles.publicReviewAuthor}>{review.author}</Text>{review.url ? <Pressable onPress={() => void Linking.openURL(review.url || '')} style={publicStyles.publicReviewLink}><FontAwesomeIcon color="#4285f4" icon={faGoogle} size={14} /><Text style={publicStyles.publicReviewLinkText}>Ver reseña en Google Maps</Text></Pressable> : null}</View>)}</View></View></Animated.View> : null}
-      <Animated.View onLayout={(event) => setBookingSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBandSurface, { minHeight: sectionHeight }, bookingAppear]}>
+      <Animated.View onLayout={(event) => setBookingSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBand, { minHeight: sectionHeight }, bookingAppear]}>
         <View style={publicStyles.publicContentContainer}>
         <View onLayout={(event) => setBookingHeaderHeight(event.nativeEvent.layout.height)}>
           <View style={publicStyles.publicBookingHeading}><View><Text style={styles.eyebrow}>Turnos</Text><Text style={publicStyles.publicSectionTitle}>Elegí el momento ideal</Text></View><Text style={publicStyles.publicBookingProgressText}>Paso {bookingStep + 1} de 4</Text></View>
@@ -385,11 +402,12 @@ export function PublicBookingScreen({ username }: Props) {
         </ScrollView>
         </View>
       </Animated.View>
+      {publicContacts.length ? <View style={publicStyles.publicContacts}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Contacto</Text><Text style={publicStyles.publicContactsTitle}>Nuestros canales de contacto</Text><View style={publicStyles.publicContactsList}>{publicContacts.map((contact) => <ContactItem contact={contact} key={`${contact.type}-${contact.value}`} />)}</View></View></View> : null}
       <View style={publicStyles.publicFooter}>
         <View style={publicStyles.publicFooterContainer}>
-          <View style={publicStyles.publicFooterBrand}><View style={publicStyles.publicBrand}>{profile.brandLogo ? <Image accessibilityLabel="Logo de la marca" source={{ uri: profile.brandLogo }} style={publicStyles.publicBrandLogo} /> : null}<Text style={publicStyles.publicFooterLogo}>{profile.publicBrandName || profile.username}</Text></View><Text style={publicStyles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
+          <View style={publicStyles.publicFooterBrand}><Text style={publicStyles.publicFooterLogo}>eldavo</Text><Text style={publicStyles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
           <View style={publicStyles.publicFooterLinks}><Text style={publicStyles.publicFooterLink}>Sobre nosotros</Text><Text style={publicStyles.publicFooterLink}>Privacidad</Text><Text style={publicStyles.publicFooterLink}>Términos y condiciones</Text></View>
-          <Text style={publicStyles.publicFooterCopyright}>© {new Date().getFullYear()} {profile.publicBrandName || profile.username}</Text>
+          <Text style={publicStyles.publicFooterCopyright}>© {new Date().getFullYear()} Eldavo</Text>
         </View>
       </View>
       </Animated.ScrollView>

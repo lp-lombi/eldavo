@@ -3,7 +3,7 @@ import { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { faArrowLeft, faCalendarCheck, faCheck, faImage, faKey, faPen, faTrash, faUserGear, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { GoogleReview, LandingService, Session } from '../../../services';
+import { GoogleReview, LandingService, PublicContact, Session } from '../../../services';
 import { colors, styles } from '../../../shared';
 import { useSettings } from '../hooks/useSettings';
 
@@ -67,7 +67,7 @@ export function SettingsScreen({ onBack, onOpenAdmin, onOpenCalendar, session }:
   const [confirmation, setConfirmation] = useState('');
   const [editingServices, setEditingServices] = useState<number[]>([]);
   const [serviceDrafts, setServiceDrafts] = useState<Record<number, LandingService>>({});
-  const { profile, setProfile, publicDescription, setPublicDescription, publicBrandName, setPublicBrandName, publicSlug, setPublicSlug, brandLogo, setBrandLogo, publicBookingEnabled, setPublicBookingEnabled, heroTitle, setHeroTitle, heroDescription, setHeroDescription, heroImage, setHeroImage, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, googleReviews, setGoogleReviews, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError } = useSettings(session.token);
+  const { profile, setProfile, publicDescription, setPublicDescription, publicBrandName, setPublicBrandName, publicSlug, setPublicSlug, brandLogo, setBrandLogo, publicBookingEnabled, setPublicBookingEnabled, heroTitle, setHeroTitle, heroDescription, setHeroDescription, heroImage, setHeroImage, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, googleReviews, setGoogleReviews, publicContacts, setPublicContacts, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError } = useSettings(session.token);
   const openPublicProfile = () => { if (!profile) return; const url = Platform.OS === 'web' ? `${window.location.origin}/${publicSlug || profile.username}` : `https://eldavo.app/${publicSlug || profile.username}`; void Linking.openURL(url); };
   const updateService = (index: number, changes: Partial<LandingService>) => setServiceDrafts((drafts) => ({ ...drafts, [index]: { ...(drafts[index] || landingServices[index]), ...changes } }));
   const startEditingService = (index: number) => {
@@ -138,6 +138,12 @@ export function SettingsScreen({ onBack, onOpenAdmin, onOpenCalendar, session }:
       <Pressable disabled={!profile} onPress={openPublicProfile}><Text style={[styles.viewMoreText, styles.publicProfileLink]}>{profile ? `${Platform.OS === 'web' ? window.location.origin : 'https://eldavo.app'}/${publicSlug || profile.username}` : 'cargando...'}</Text></Pressable>
       <Text style={styles.label}>Descripción pública</Text>
       <TextInput multiline onChangeText={setPublicDescription} placeholder="Contales qué tipo de turnos ofrecés" placeholderTextColor={colors.textMuted} style={[styles.input, styles.detailTextarea]} value={publicDescription} />
+      <Text style={styles.sectionTitle}>Canales de contacto</Text>
+      <Text style={styles.settingsOptionDescription}>Completá solo los canales que quieras mostrar en tu landing.</Text>
+      {(['whatsapp', 'instagram', 'facebook', 'email'] as const).map((type) => <View key={type}>
+        <Text style={styles.label}>{type === 'whatsapp' ? 'WhatsApp' : type === 'instagram' ? 'Instagram' : type === 'facebook' ? 'Facebook' : 'Email'}</Text>
+        <TextInput autoCapitalize="none" autoCorrect={false} onChangeText={(value) => setPublicContacts((current) => value.trim() ? [...current.filter((contact) => contact.type !== type), { type, value }] : current.filter((contact) => contact.type !== type))} placeholder={type === 'email' ? 'contacto@ejemplo.com' : type === 'whatsapp' ? '5491122334455' : `https://${type}.com/mi-marca`} placeholderTextColor={colors.textMuted} style={styles.input} value={publicContacts.find((contact) => contact.type === type)?.value || ''} />
+      </View>)}
       <Text style={styles.label}>Nombre de la marca</Text>
       <TextInput onChangeText={setPublicBrandName} placeholder="Mi estudio" placeholderTextColor={colors.textMuted} style={styles.input} value={publicBrandName} />
       <Text style={styles.label}>URL pública</Text>

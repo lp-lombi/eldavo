@@ -16,6 +16,16 @@ function parseReviews(value?: string | null): Array<{ author: string; text: stri
   }
 }
 
+function parseContacts(value?: string | null): Array<{ type: string; value: string }> {
+  if (!value) return [];
+  try {
+    const contacts = JSON.parse(value) as unknown;
+    return Array.isArray(contacts) ? contacts : [];
+  } catch {
+    return [];
+  }
+}
+
 async function findPublicUser(users: Repository<User>, identifier: string) {
   return users.findOne({ where: [{ username: identifier }, { publicSlug: identifier }] });
 }
@@ -58,7 +68,7 @@ export function createPublicBookingRouter(dataSource: DataSource): Router {
     const user = await findPublicUser(users, request.params.username);
     if (!user || !user.publicBookingEnabled) return response.status(404).json({ message: 'Public booking is not available' });
     const services = await landingServices.find({ where: { ownerId: user.id }, order: { sortOrder: 'ASC', id: 'ASC' } });
-    response.json({ username: user.username, publicBrandName: user.publicBrandName, publicSlug: user.publicSlug || user.username, brandLogo: user.brandLogo, description: user.publicDescription, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, heroImage: user.heroImage, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, googleReviews: parseReviews(user.googleReviews), landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) });
+    response.json({ username: user.username, publicBrandName: user.publicBrandName, publicSlug: user.publicSlug || user.username, brandLogo: user.brandLogo, description: user.publicDescription, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, heroImage: user.heroImage, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, googleReviews: parseReviews(user.googleReviews), publicContacts: parseContacts(user.publicContacts), landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) });
   });
 
   router.post('/:username/requests', async (request, response) => {

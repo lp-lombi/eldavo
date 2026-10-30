@@ -57,4 +57,7 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   googleReviews?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  publicContacts?: string | null;
 }

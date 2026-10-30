@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GoogleReview, LandingService, OwnPublicProfile } from '../../../services';
+import { GoogleReview, LandingService, OwnPublicProfile, PublicContact } from '../../../services';
 import { loadOwnProfile, saveOwnProfile, updatePassword } from '../services/settingsService';
 
 export function useSettings(token: string) {
@@ -17,6 +17,7 @@ export function useSettings(token: string) {
   const [aboutTitle, setAboutTitle] = useState('');
   const [aboutDescription, setAboutDescription] = useState('');
   const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>([]);
+  const [publicContacts, setPublicContacts] = useState<PublicContact[]>([]);
   const [landingServices, setLandingServices] = useState<LandingService[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -42,6 +43,7 @@ export function useSettings(token: string) {
         setAboutTitle(loadedProfile.aboutTitle || '');
         setAboutDescription(loadedProfile.aboutDescription || loadedProfile.landingAbout || '');
         setGoogleReviews(loadedProfile.googleReviews || []);
+        setPublicContacts(loadedProfile.publicContacts || []);
         setLandingServices(loadedProfile.landingServices || []);
       })
       .catch(() => { if (!cancelled) setError('No se pudo cargar la configuración pública'); });
@@ -52,7 +54,7 @@ export function useSettings(token: string) {
     setProfileSaving(true);
     setError('');
     try {
-      const updated = await saveOwnProfile(token, publicBrandName, publicSlug, brandLogo, publicDescription, publicBookingEnabled, landingTitle, landingAbout, heroTitle, heroDescription, heroImage, aboutTitle, aboutDescription, googleReviews, services);
+      const updated = await saveOwnProfile(token, publicBrandName, publicSlug, brandLogo, publicDescription, publicBookingEnabled, landingTitle, landingAbout, heroTitle, heroDescription, heroImage, aboutTitle, aboutDescription, googleReviews, publicContacts, services);
       setProfile(updated);
       setPublicBrandName(updated.publicBrandName || '');
       setPublicSlug(updated.publicSlug || updated.username);
@@ -84,5 +86,5 @@ export function useSettings(token: string) {
     }
   };
 
-  return { profile, setProfile, publicDescription, setPublicDescription, publicBrandName, setPublicBrandName, publicSlug, setPublicSlug, brandLogo, setBrandLogo, publicBookingEnabled, setPublicBookingEnabled, landingTitle, setLandingTitle, landingAbout, setLandingAbout, heroTitle, setHeroTitle, heroDescription, setHeroDescription, heroImage, setHeroImage, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, googleReviews, setGoogleReviews, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError, setMessage };
+  return { profile, setProfile, publicDescription, setPublicDescription, publicBrandName, setPublicBrandName, publicSlug, setPublicSlug, brandLogo, setBrandLogo, publicBookingEnabled, setPublicBookingEnabled, landingTitle, setLandingTitle, landingAbout, setLandingAbout, heroTitle, setHeroTitle, heroDescription, setHeroDescription, heroImage, setHeroImage, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, googleReviews, setGoogleReviews, publicContacts, setPublicContacts, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError, setMessage };
 }

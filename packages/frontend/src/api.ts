@@ -12,9 +12,10 @@ export type Appointment = { id: number; ownerId: number; clientId?: number | nul
 export type AppointmentRequest = { id: number; ownerId: number; requesterName: string; requesterEmail: string; requesterPhone?: string | null; notes?: string | null; startsAt: string; endsAt: string; status: 'pending' | 'confirmed' | 'rejected'; createdAt: string };
 export type LandingService = { id?: number; name: string; description: string; image?: string | null; sortOrder?: number };
 export type GoogleReview = { author: string; text: string; rating: number; url?: string | null };
-export type PublicProfile = { username: string; publicBrandName?: string | null; publicSlug?: string | null; brandLogo?: string | null; description?: string | null; landingTitle?: string | null; landingAbout?: string | null; heroTitle?: string | null; heroDescription?: string | null; heroImage?: string | null; aboutTitle?: string | null; aboutDescription?: string | null; googleReviews?: GoogleReview[]; landingServices?: LandingService[] };
+export type PublicContact = { type: 'whatsapp' | 'instagram' | 'facebook' | 'email'; value: string };
+export type PublicProfile = { username: string; publicBrandName?: string | null; publicSlug?: string | null; brandLogo?: string | null; description?: string | null; landingTitle?: string | null; landingAbout?: string | null; heroTitle?: string | null; heroDescription?: string | null; heroImage?: string | null; aboutTitle?: string | null; aboutDescription?: string | null; googleReviews?: GoogleReview[]; publicContacts?: PublicContact[]; landingServices?: LandingService[] };
 export type PublicAvailabilitySlot = { startsAt: string; endsAt: string; available: boolean };
-export type OwnPublicProfile = { username: string; publicBrandName?: string | null; publicSlug?: string | null; brandLogo?: string | null; publicDescription?: string | null; publicBookingEnabled: boolean; landingTitle?: string | null; landingAbout?: string | null; heroTitle?: string | null; heroDescription?: string | null; heroImage?: string | null; aboutTitle?: string | null; aboutDescription?: string | null; googleReviews?: GoogleReview[]; landingServices?: LandingService[] };
+export type OwnPublicProfile = { username: string; publicBrandName?: string | null; publicSlug?: string | null; brandLogo?: string | null; publicDescription?: string | null; publicBookingEnabled: boolean; landingTitle?: string | null; landingAbout?: string | null; heroTitle?: string | null; heroDescription?: string | null; heroImage?: string | null; aboutTitle?: string | null; aboutDescription?: string | null; googleReviews?: GoogleReview[]; publicContacts?: PublicContact[]; landingServices?: LandingService[] };
 
 
 const publicApiUrl = 'http://200.89.178.188:3005';
@@ -43,7 +44,7 @@ export function changePassword(token: string, currentPassword: string, newPasswo
   return request<void>('/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword, newPassword }) }, token);
 }
 export function getOwnPublicProfile(token: string): Promise<OwnPublicProfile> { return request<OwnPublicProfile>('/auth/profile', {}, token); }
-export function updateOwnPublicProfile(token: string, changes: { publicBrandName: string; publicSlug: string; brandLogo: string | null; publicDescription: string; publicBookingEnabled: boolean; landingTitle: string; landingAbout: string; heroTitle: string; heroDescription: string; heroImage: string | null; aboutTitle: string; aboutDescription: string; googleReviews: GoogleReview[]; landingServices: LandingService[] }): Promise<OwnPublicProfile> {
+export function updateOwnPublicProfile(token: string, changes: { publicBrandName: string; publicSlug: string; brandLogo: string | null; publicDescription: string; publicBookingEnabled: boolean; landingTitle: string; landingAbout: string; heroTitle: string; heroDescription: string; heroImage: string | null; aboutTitle: string; aboutDescription: string; googleReviews: GoogleReview[]; publicContacts: PublicContact[]; landingServices: LandingService[] }): Promise<OwnPublicProfile> {
   return request<OwnPublicProfile>('/auth/profile', { method: 'PUT', body: JSON.stringify(changes) }, token);
 }
 export function getPublicProfile(username: string): Promise<PublicProfile> { return request<PublicProfile>(`/public-booking/${encodeURIComponent(username)}`); }
