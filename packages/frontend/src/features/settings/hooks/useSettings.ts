@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { LandingService, OwnPublicProfile } from '../../../services';
+import { GoogleReview, LandingService, OwnPublicProfile } from '../../../services';
 import { loadOwnProfile, saveOwnProfile, updatePassword } from '../services/settingsService';
 
 export function useSettings(token: string) {
   const [profile, setProfile] = useState<OwnPublicProfile | null>(null);
   const [publicDescription, setPublicDescription] = useState('');
+  const [publicBrandName, setPublicBrandName] = useState('');
+  const [publicSlug, setPublicSlug] = useState('');
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [publicBookingEnabled, setPublicBookingEnabled] = useState(true);
   const [landingTitle, setLandingTitle] = useState('');
   const [landingAbout, setLandingAbout] = useState('');
   const [heroTitle, setHeroTitle] = useState('');
   const [heroDescription, setHeroDescription] = useState('');
+  const [heroImage, setHeroImage] = useState<string | null>(null);
   const [aboutTitle, setAboutTitle] = useState('');
   const [aboutDescription, setAboutDescription] = useState('');
+  const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>([]);
   const [landingServices, setLandingServices] = useState<LandingService[]>([]);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -25,13 +30,18 @@ export function useSettings(token: string) {
         if (cancelled) return;
         setProfile(loadedProfile);
         setPublicDescription(loadedProfile.publicDescription || '');
+        setPublicBrandName(loadedProfile.publicBrandName || '');
+        setPublicSlug(loadedProfile.publicSlug || loadedProfile.username);
+        setBrandLogo(loadedProfile.brandLogo || null);
         setPublicBookingEnabled(loadedProfile.publicBookingEnabled);
         setLandingTitle(loadedProfile.landingTitle || '');
         setLandingAbout(loadedProfile.landingAbout || '');
         setHeroTitle(loadedProfile.heroTitle || loadedProfile.landingTitle || '');
         setHeroDescription(loadedProfile.heroDescription || '');
+        setHeroImage(loadedProfile.heroImage || null);
         setAboutTitle(loadedProfile.aboutTitle || '');
         setAboutDescription(loadedProfile.aboutDescription || loadedProfile.landingAbout || '');
+        setGoogleReviews(loadedProfile.googleReviews || []);
         setLandingServices(loadedProfile.landingServices || []);
       })
       .catch(() => { if (!cancelled) setError('No se pudo cargar la configuración pública'); });
@@ -42,8 +52,12 @@ export function useSettings(token: string) {
     setProfileSaving(true);
     setError('');
     try {
-      const updated = await saveOwnProfile(token, publicDescription, publicBookingEnabled, landingTitle, landingAbout, heroTitle, heroDescription, aboutTitle, aboutDescription, services);
+      const updated = await saveOwnProfile(token, publicBrandName, publicSlug, brandLogo, publicDescription, publicBookingEnabled, landingTitle, landingAbout, heroTitle, heroDescription, heroImage, aboutTitle, aboutDescription, googleReviews, services);
       setProfile(updated);
+      setPublicBrandName(updated.publicBrandName || '');
+      setPublicSlug(updated.publicSlug || updated.username);
+      setBrandLogo(updated.brandLogo || null);
+      setHeroImage(updated.heroImage || null);
       setMessage('Configuración pública actualizada');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'No se pudo guardar');
@@ -70,5 +84,5 @@ export function useSettings(token: string) {
     }
   };
 
-  return { profile, setProfile, publicDescription, setPublicDescription, publicBookingEnabled, setPublicBookingEnabled, landingTitle, setLandingTitle, landingAbout, setLandingAbout, heroTitle, setHeroTitle, heroDescription, setHeroDescription, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError, setMessage };
+  return { profile, setProfile, publicDescription, setPublicDescription, publicBrandName, setPublicBrandName, publicSlug, setPublicSlug, brandLogo, setBrandLogo, publicBookingEnabled, setPublicBookingEnabled, landingTitle, setLandingTitle, landingAbout, setLandingAbout, heroTitle, setHeroTitle, heroDescription, setHeroDescription, heroImage, setHeroImage, aboutTitle, setAboutTitle, aboutDescription, setAboutDescription, googleReviews, setGoogleReviews, landingServices, setLandingServices, error, message, saving, profileSaving, saveProfile, changeUserPassword, setError, setMessage };
 }

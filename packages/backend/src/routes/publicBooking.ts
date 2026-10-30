@@ -4,6 +4,21 @@ import { AppointmentRequest } from '../entities/AppointmentRequest';
 import { Appointment } from '../entities/Appointment';
 import { User } from '../entities/User';
 import { LandingService } from '../entities/LandingService';
+import { Repository } from 'typeorm';
+
+function parseReviews(value?: string | null): Array<{ author: string; text: string; rating: number; url?: string | null }> {
+  if (!value) return [];
+  try {
+    const reviews = JSON.parse(value) as unknown;
+    return Array.isArray(reviews) ? reviews : [];
+  } catch {
+    return [];
+  }
+}
+
+async function findPublicUser(users: Repository<User>, identifier: string) {
+  return users.findOne({ where: [{ username: identifier }, { publicSlug: identifier }] });
+}
 
 function parseDate(value: unknown): Date | null {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -19,7 +34,7 @@ export function createPublicBookingRouter(dataSource: DataSource): Router {
   const appointments = dataSource.getRepository(Appointment);
 
   router.get('/:username/availability', async (request, response) => {
-    const user = await users.findOneBy({ username: request.params.username });
+    const user = await findPublicUser(users, request.params.username);
     if (!user || !user.publicBookingEnabled) return response.status(404).json({ message: 'Public booking is not available' });
     const date = typeof request.query.date === 'string' ? request.query.date : '';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return response.status(400).json({ message: 'date must use YYYY-MM-DD format' });
@@ -40,14 +55,14 @@ export function createPublicBookingRouter(dataSource: DataSource): Router {
   });
 
   router.get('/:username', async (request, response) => {
-    const user = await users.findOneBy({ username: request.params.username });
+    const user = await findPublicUser(users, request.params.username);
     if (!user || !user.publicBookingEnabled) return response.status(404).json({ message: 'Public booking is not available' });
     const services = await landingServices.find({ where: { ownerId: user.id }, order: { sortOrder: 'ASC', id: 'ASC' } });
-    response.json({ username: user.username, description: user.publicDescription, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) });
+    response.json({ username: user.username, publicBrandName: user.publicBrandName, publicSlug: user.publicSlug || user.username, brandLogo: user.brandLogo, description: user.publicDescription, landingTitle: user.landingTitle, landingAbout: user.landingAbout, heroTitle: user.heroTitle, heroDescription: user.heroDescription, heroImage: user.heroImage, aboutTitle: user.aboutTitle, aboutDescription: user.aboutDescription, googleReviews: parseReviews(user.googleReviews), landingServices: services.map(({ id, name, description, image, sortOrder }) => ({ id, name, description, image, sortOrder })) });
   });
 
   router.post('/:username/requests', async (request, response) => {
-    const user = await users.findOneBy({ username: request.params.username });
+    const user = await findPublicUser(users, request.params.username);
     if (!user || !user.publicBookingEnabled) return response.status(404).json({ message: 'Public booking is not available' });
     const { name, email, phone, notes, startsAt, endsAt } = request.body as { name?: string; email?: string; phone?: string; notes?: string; startsAt?: string; endsAt?: string };
     const parsedStart = parseDate(startsAt);

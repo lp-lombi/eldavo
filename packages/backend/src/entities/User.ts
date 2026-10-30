@@ -13,6 +13,15 @@ export class User {
   @Column({ unique: true })
   username!: string;
 
+  @Column({ type: 'text', nullable: true })
+  publicBrandName?: string | null;
+
+  @Column({ type: 'text', unique: true, nullable: true })
+  publicSlug?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  brandLogo?: string | null;
+
   @Column()
   passwordHash!: string;
 
@@ -38,9 +47,14 @@ export class User {
   heroDescription?: string | null;
 
   @Column({ type: 'text', nullable: true })
+  heroImage?: string | null;
+
+  @Column({ type: 'text', nullable: true })
   aboutTitle?: string | null;
 
   @Column({ type: 'text', nullable: true })
   aboutDescription?: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  googleReviews?: string | null;
 }

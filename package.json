@@ -15,6 +15,7 @@
     "start:backend": "npm run start --workspace @eldavo/backend",
     "dev:frontend": "npm run start --workspace @eldavo/frontend",
     "web:frontend": "npm run web --workspace @eldavo/frontend",
+    "share:dev": "node scripts/share-dev.js",
     "android:frontend": "npm run android --workspace @eldavo/frontend",
     "test:backend": "npm run test --workspace @eldavo/backend",
     "test:watch": "npm run test:watch --workspace @eldavo/backend"

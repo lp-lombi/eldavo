@@ -23,7 +23,7 @@ export function createApp(dataSource: DataSource): express.Express {
   ].find((directory) => fs.existsSync(directory));
 
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: '10mb' }));
 
   app.get('/health', (_request, response) => {
     response.json({ status: 'ok' });

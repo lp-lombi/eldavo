@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, ImageBackground, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Animated, Image, ImageBackground, Linking, Platform, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { faGoogle } from '@fortawesome/free-brands-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import heroImage from '../../../assets/esmeralda.jpg';
 import { LandingService, PublicAvailabilitySlot } from '../../../services';
 import { colors, styles } from '../../../shared';
 import { usePublicBooking } from '../hooks/usePublicBooking';
+import { publicStyles } from './PublicBookingScreen.styles';
 
 type Props = { username: string };
 const AnimatedImageBackground = Animated.createAnimatedComponent(ImageBackground);
@@ -41,6 +44,8 @@ export function PublicBookingScreen({ username }: Props) {
   const [selectedService, setSelectedService] = useState('Obtener turno');
   const [bookingStep, setBookingStep] = useState(0);
   const [bookingSectionY, setBookingSectionY] = useState<number | null>(null);
+  const [aboutSectionY, setAboutSectionY] = useState<number | null>(null);
+  const [reviewsSectionY, setReviewsSectionY] = useState<number | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
   const heroEntrance = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef<ScrollView>(null);
@@ -48,16 +53,27 @@ export function PublicBookingScreen({ username }: Props) {
   const aboutServicesRef = useRef<ScrollView>(null);
   const aboutServicePhysicalIndexRef = useRef(0);
   const aboutServicesHoveredRef = useRef(false);
+  const aboutServicePendingOffsetRef = useRef<number | null>(null);
+  const aboutServiceAdjustingRef = useRef(false);
   const [aboutServiceIndex, setAboutServiceIndex] = useState(0);
+  const [aboutCarouselItems, setAboutCarouselItems] = useState<LandingService[]>([]);
   const { width: viewportWidth } = useWindowDimensions();
   const jumpToBooking = () => {
     if (bookingSectionY === null) return;
     scrollRef.current?.scrollTo({ y: bookingSectionY, animated: true });
   };
-  const bookingStepWidth = Math.min(Math.max(viewportWidth - 52, 280), 1180);
-  const aboutServiceStep = 418;
-  const aboutServiceCopies = 7;
+  const jumpToAbout = () => {
+    if (aboutSectionY === null) return;
+    scrollRef.current?.scrollTo({ y: aboutSectionY, animated: true });
+  };
+  const jumpToReviews = () => {
+    if (reviewsSectionY === null) return;
+    scrollRef.current?.scrollTo({ y: reviewsSectionY, animated: true });
+  };
+  const bookingStepWidth = Math.min(Math.max(viewportWidth, 280), 1180);
+  const aboutServiceStep = 298;
   const landingServices: LandingService[] = profile?.landingServices || [];
+  const googleReviews = profile?.googleReviews || [];
 
   function goToBookingStep(step: number) {
     const nextStep = Math.max(0, Math.min(step, 3));
@@ -87,11 +103,24 @@ export function PublicBookingScreen({ username }: Props) {
   }, [profile, selectedService]);
 
   useEffect(() => {
-    const initialIndex = landingServices.length * Math.floor(aboutServiceCopies / 2);
+    const initialItems = [...landingServices, ...landingServices, ...landingServices];
+    const initialIndex = landingServices.length;
+    setAboutCarouselItems(initialItems);
     aboutServicePhysicalIndexRef.current = initialIndex;
     setAboutServiceIndex(0);
     aboutServicesRef.current?.scrollTo({ x: initialIndex * aboutServiceStep, animated: false });
-  }, [profile?.username, landingServices.length]);
+  }, [profile?.username, landingServices]);
+
+  useEffect(() => {
+    if (aboutServicePendingOffsetRef.current === null) {
+      aboutServiceAdjustingRef.current = false;
+      return;
+    }
+    const pendingOffset = aboutServicePendingOffsetRef.current;
+    aboutServicePendingOffsetRef.current = null;
+    aboutServicesRef.current?.scrollTo({ x: pendingOffset * aboutServiceStep, animated: false });
+    aboutServiceAdjustingRef.current = false;
+  }, [aboutCarouselItems]);
 
   useEffect(() => {
     if (landingServices.length < 2) return;
@@ -106,22 +135,56 @@ export function PublicBookingScreen({ username }: Props) {
   }, [landingServices.length]);
 
   function selectAboutService(index: number) {
-    const physicalIndex = landingServices.length * Math.floor(aboutServiceCopies / 2) + index;
+    const physicalIndex = landingServices.length + index;
     aboutServicePhysicalIndexRef.current = physicalIndex;
     setAboutServiceIndex(index);
     aboutServicesRef.current?.scrollTo({ x: physicalIndex * aboutServiceStep, animated: true });
   }
 
   function handleAboutServiceScrollEnd(offsetX: number) {
-    if (!landingServices.length) return;
+    if (!landingServices.length || !aboutCarouselItems.length) return;
     const physicalIndex = Math.round(offsetX / aboutServiceStep);
     const serviceIndex = ((physicalIndex % landingServices.length) + landingServices.length) % landingServices.length;
-    const normalizedPhysicalIndex = landingServices.length * Math.floor(aboutServiceCopies / 2) + serviceIndex;
+    const copyLength = landingServices.length;
+    let normalizedPhysicalIndex = physicalIndex;
+    if (physicalIndex >= aboutCarouselItems.length - 1) {
+      normalizedPhysicalIndex = physicalIndex - copyLength;
+      aboutServicePendingOffsetRef.current = normalizedPhysicalIndex;
+      setAboutCarouselItems((items) => [...items.slice(copyLength), ...landingServices]);
+    } else if (physicalIndex <= 0) {
+      normalizedPhysicalIndex = physicalIndex + copyLength;
+      aboutServicePendingOffsetRef.current = normalizedPhysicalIndex;
+      setAboutCarouselItems((items) => [...landingServices, ...items.slice(0, -copyLength)]);
+    }
     aboutServicePhysicalIndexRef.current = normalizedPhysicalIndex;
     setAboutServiceIndex(serviceIndex);
-    if (normalizedPhysicalIndex !== physicalIndex) {
-      aboutServicesRef.current?.scrollTo({ x: normalizedPhysicalIndex * aboutServiceStep, animated: false });
+    if (normalizedPhysicalIndex !== physicalIndex) return;
+  }
+
+  function handleAboutServiceScroll(offsetX: number, contentWidth: number, viewportWidth: number) {
+    if (aboutServiceAdjustingRef.current || !landingServices.length || !aboutCarouselItems.length) return;
+    const edgeDistance = aboutServiceStep;
+    const copyLength = landingServices.length;
+    const physicalIndex = Math.round(offsetX / aboutServiceStep);
+    const maxOffset = Math.max(contentWidth - viewportWidth, 0);
+    const nearRightEdge = maxOffset > edgeDistance && offsetX >= maxOffset - edgeDistance;
+    const nearLeftEdge = maxOffset > edgeDistance && offsetX <= edgeDistance;
+    if (!nearRightEdge && !nearLeftEdge) {
+      setAboutServiceIndex(((physicalIndex % copyLength) + copyLength) % copyLength);
+      return;
     }
+
+    aboutServiceAdjustingRef.current = true;
+    const normalizedPhysicalIndex = nearRightEdge
+      ? physicalIndex - copyLength
+      : physicalIndex + copyLength;
+    const serviceIndex = ((physicalIndex % copyLength) + copyLength) % copyLength;
+    aboutServicePhysicalIndexRef.current = normalizedPhysicalIndex;
+    setAboutServiceIndex(serviceIndex);
+    aboutServicePendingOffsetRef.current = normalizedPhysicalIndex;
+    setAboutCarouselItems((items) => nearRightEdge
+      ? [...items.slice(copyLength), ...landingServices]
+      : [...landingServices, ...items.slice(0, -copyLength)]);
   }
 
   async function submit() {
@@ -162,29 +225,43 @@ export function PublicBookingScreen({ username }: Props) {
   }
 
   if (sent) {
+    const publicUrl = Platform.OS === 'web' && typeof window !== 'undefined'
+      ? `${window.location.origin}/${profile.publicSlug || username}`
+      : `https://eldavo.app/${profile.publicSlug || username}`;
+    const openPublicWebsite = () => { void Linking.openURL(publicUrl); };
+
     return (
-      <View style={styles.publicReceiptPage}>
-        <View style={styles.publicContainer}><Text style={styles.publicLogo}>{profile.username}</Text></View>
-        <View style={styles.publicReceipt}>
-          <Text style={styles.publicReceiptIcon}>✓</Text>
-          <Text style={styles.eyebrow}>Solicitud recibida</Text>
-          <Text style={styles.publicReceiptTitle}>Gracias, {name}</Text>
-          <Text style={styles.publicSectionText}>Tu solicitud fue enviada correctamente. {profile.username} deberá confirmarla para que el turno quede reservado.</Text>
-          <View style={styles.publicReceiptCard}>
-            <Text style={styles.publicReceiptLabel}>Número de turno</Text>
-            <Text style={styles.publicReceiptNumber}>#{bookingId ?? '—'}</Text>
-            <View style={styles.publicReceiptDivider} />
-            <Text style={styles.publicReceiptLabel}>Servicio</Text>
-            <Text style={styles.publicReceiptValue}>{selectedService}</Text>
-            <Text style={styles.publicReceiptLabel}>Fecha</Text>
-            <Text style={styles.publicReceiptValue}>{formatBookingDate(selectedDate)}</Text>
-            <Text style={styles.publicReceiptLabel}>Horario</Text>
-            <Text style={styles.publicReceiptValue}>{selectedSlot ? `${formatSlot(selectedSlot.startsAt)} - ${formatSlot(selectedSlot.endsAt)}` : '—'}</Text>
-            <Text style={styles.publicReceiptLabel}>Email de contacto</Text>
-            <Text style={styles.publicReceiptValue}>{email}</Text>
+      <View style={publicStyles.publicReceiptPage}>
+        <View style={publicStyles.publicHeader}>
+          <View style={publicStyles.publicContainer}>
+            <Pressable accessibilityLabel="Volver a la web pública" onPress={openPublicWebsite} style={publicStyles.publicBrand}>
+              {profile.brandLogo ? <Image accessibilityLabel="Logo de la marca" source={{ uri: profile.brandLogo }} style={publicStyles.publicBrandLogo} /> : null}
+              <Text style={publicStyles.publicLogo}>{profile.publicBrandName || profile.username}</Text>
+            </Pressable>
           </View>
-          <Text style={styles.publicReceiptNote}>Conservá este número para consultar tu solicitud.</Text>
         </View>
+        <ScrollView contentContainerStyle={publicStyles.publicReceiptScrollContent} showsVerticalScrollIndicator={false}>
+        <View style={publicStyles.publicReceipt}>
+          <Text style={publicStyles.publicReceiptIcon}>✓</Text>
+          <Text style={styles.eyebrow}>Solicitud recibida</Text>
+          <Text style={publicStyles.publicReceiptTitle}>Gracias, {name}</Text>
+          <Text style={publicStyles.publicSectionText}>Tu solicitud fue enviada correctamente. {profile.username} deberá confirmarla para que el turno quede reservado.</Text>
+          <View style={publicStyles.publicReceiptCard}>
+            <Text style={publicStyles.publicReceiptLabel}>Número de turno</Text>
+            <Text style={publicStyles.publicReceiptNumber}>#{bookingId ?? '—'}</Text>
+            <View style={publicStyles.publicReceiptDivider} />
+            <Text style={publicStyles.publicReceiptLabel}>Servicio</Text>
+            <Text style={publicStyles.publicReceiptValue}>{selectedService}</Text>
+            <Text style={publicStyles.publicReceiptLabel}>Fecha</Text>
+            <Text style={publicStyles.publicReceiptValue}>{formatBookingDate(selectedDate)}</Text>
+            <Text style={publicStyles.publicReceiptLabel}>Horario</Text>
+            <Text style={publicStyles.publicReceiptValue}>{selectedSlot ? `${formatSlot(selectedSlot.startsAt)} - ${formatSlot(selectedSlot.endsAt)}` : '—'}</Text>
+            <Text style={publicStyles.publicReceiptLabel}>Email de contacto</Text>
+            <Text style={publicStyles.publicReceiptValue}>{email}</Text>
+          </View>
+          <Text style={publicStyles.publicReceiptNote}>Conservá este número para consultar tu solicitud.</Text>
+        </View>
+        </ScrollView>
       </View>
     );
   }
@@ -200,38 +277,39 @@ export function PublicBookingScreen({ username }: Props) {
     : [{ name: 'Obtener turno', description: 'Elegí un día y horario disponible para reservar.' }];
   const sectionHeight = Math.max(viewportHeight - 72, 0);
   const appear = (inputRange: [number, number]) => ({
-    opacity: scrollY.interpolate({ inputRange, outputRange: [0.2, 1], extrapolate: 'clamp' }),
-    transform: [{ translateY: scrollY.interpolate({ inputRange, outputRange: [40, 0], extrapolate: 'clamp' }) }],
+    opacity: scrollY.interpolate({ inputRange, outputRange: [0.1, 1], extrapolate: 'clamp' }),
+    transform: [{ translateY: scrollY.interpolate({ inputRange, outputRange: [64, 0], extrapolate: 'clamp' }) }],
   });
   const bookingAppear = bookingSectionY === null
     ? undefined
-    : appear([Math.max(0, bookingSectionY - viewportHeight), Math.max(1, bookingSectionY - viewportHeight * 0.35)]);
+    : appear([Math.max(0, bookingSectionY - viewportHeight * 0.78), Math.max(1, bookingSectionY - viewportHeight * 0.08)]);
 
   return (
-    <View style={styles.publicLanding}>
-      <View style={styles.publicHeader}>
-        <View style={styles.publicContainer}><Text style={styles.publicLogo}>{profile.username}</Text><Pressable onPress={jumpToBooking}><Text style={styles.publicHeaderLink}>Reservar turno</Text></Pressable></View>
+    <View style={publicStyles.publicLanding}>
+      <View style={publicStyles.publicHeader}>
+        <View style={publicStyles.publicContainer}><View style={publicStyles.publicBrand}>{profile.brandLogo ? <Image accessibilityLabel="Logo de la marca" source={{ uri: profile.brandLogo }} style={publicStyles.publicBrandLogo} /> : null}<Text style={publicStyles.publicLogo}>{profile.publicBrandName || profile.username}</Text></View>{viewportWidth > 700 ? <View style={publicStyles.publicHeaderActions}><Pressable onPress={jumpToAbout}><Text style={publicStyles.publicHeaderLink}>Sobre nosotros</Text></Pressable>{googleReviews.length ? <Pressable onPress={jumpToReviews}><Text style={publicStyles.publicHeaderLink}>Reseñas</Text></Pressable> : null}<Pressable onPress={jumpToBooking}><Text style={publicStyles.publicHeaderLink}>Reservar turno</Text></Pressable></View> : null}</View>
       </View>
       <Animated.ScrollView
-        contentContainerStyle={styles.publicScrollContent}
+        contentContainerStyle={publicStyles.publicScrollContent}
         keyboardShouldPersistTaps="handled"
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         ref={scrollRef}
         scrollEventThrottle={16}
       >
-        <AnimatedImageBackground imageStyle={styles.publicHeroImage} resizeMode="cover" source={heroImage} style={[styles.publicHero, { height: Math.max(viewportHeight - 72, 0) }, { opacity: heroEntrance }]}>
-          <View style={styles.publicHeroOverlay} />
-          <View style={styles.publicContainer}><View style={styles.publicHeroCopy}><Text style={styles.publicHeroEyebrow}>Bienvenido/a</Text><Text style={styles.publicHeroTitle}>{heroTitle}</Text><Text style={styles.publicHeroSubtitle}>{heroDescription}</Text><Pressable onPress={jumpToBooking} style={styles.publicHeroButton}><Text style={styles.publicHeroButtonText}>Solicitar turno</Text></Pressable></View></View>
+        <AnimatedImageBackground imageStyle={publicStyles.publicHeroImage} resizeMode="cover" source={profile.heroImage ? { uri: profile.heroImage } : heroImage} style={[publicStyles.publicHero, { height: Math.max(viewportHeight - 72, 0) }, { opacity: heroEntrance }]}>
+          <View style={publicStyles.publicHeroOverlay} />
+          <View style={publicStyles.publicContainer}><View style={publicStyles.publicHeroCopy}><Text style={publicStyles.publicHeroEyebrow}>Bienvenido/a</Text><Text style={publicStyles.publicHeroTitle}>{heroTitle}</Text><Text style={publicStyles.publicHeroSubtitle}>{heroDescription}</Text><Pressable onPress={jumpToBooking} style={publicStyles.publicHeroButton}><Text style={publicStyles.publicHeroButtonText}>Solicitar turno</Text></Pressable></View></View>
         </AnimatedImageBackground>
-      <Animated.View style={[styles.publicLandingBand, { minHeight: sectionHeight }, appear([0, 340])]}><View style={styles.publicContentContainer}><Text style={styles.eyebrow}>Sobre nosotros</Text><Text style={styles.publicSectionTitle}>{aboutTitle}</Text><Text style={styles.publicSectionText}>{aboutDescription}</Text>{landingServices.length ? <><ScrollView horizontal onMouseEnter={() => { aboutServicesHoveredRef.current = true; }} onMouseLeave={() => { aboutServicesHoveredRef.current = false; }} onMomentumScrollEnd={(event) => handleAboutServiceScrollEnd(event.nativeEvent.contentOffset.x)} ref={aboutServicesRef} showsHorizontalScrollIndicator={false} style={styles.publicAboutServices}>{Array.from({ length: aboutServiceCopies }, (_, copyIndex) => landingServices.map((service, serviceIndex) => ({ service, index: copyIndex * landingServices.length + serviceIndex }))).flat().map(({ service, index }) => <View key={`${index}-${service.id ?? service.name}`} style={styles.publicAboutService}>{service.image ? <ImageBackground imageStyle={styles.publicAboutServiceImage} source={{ uri: service.image }} style={styles.publicAboutServiceImageContainer} /> : <View style={styles.publicAboutServiceImageContainer} />}<View style={styles.publicAboutServiceCopy}><Text style={styles.publicAboutServiceTitle}>{service.name}</Text><Text style={styles.publicAboutServiceDescription}>{service.description}</Text></View></View>)}</ScrollView><View style={styles.publicAboutServiceDots}>{landingServices.map((service, index) => <Pressable accessibilityLabel={`Ir al servicio ${service.name}`} key={service.id ?? service.name} onPress={() => selectAboutService(index)} style={[styles.publicAboutServiceDot, index === aboutServiceIndex && styles.publicAboutServiceDotActive]} />)}</View></> : null}</View></Animated.View>
-      <Animated.View onLayout={(event) => setBookingSectionY(event.nativeEvent.layout.y)} style={[styles.publicLandingBandSurface, { height: sectionHeight }, bookingAppear]}>
-        <View style={styles.publicContentContainer}>
-        <View style={styles.publicBookingHeading}><View><Text style={styles.eyebrow}>Turnos</Text><Text style={styles.publicSectionTitle}>Elegí el momento ideal</Text></View><Text style={styles.publicBookingProgressText}>Paso {bookingStep + 1} de 4</Text></View>
-        <Text style={styles.publicSectionText}>Seleccioná un día y horario disponible. Te vamos a confirmar la solicitud a la brevedad.</Text>
-        <View style={styles.publicBookingProgress}><View style={styles.publicBookingProgressDots}>{[0, 1, 2, 3].map((step) => <View key={step} style={[styles.publicBookingProgressDot, step === bookingStep && styles.publicBookingProgressDotActive]} />)}</View></View>
+      <Animated.View onLayout={(event) => setAboutSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBand, { minHeight: sectionHeight }, appear([120, Math.max(121, viewportHeight * 0.75)])]}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Sobre nosotros</Text><Text style={publicStyles.publicSectionTitle}>{aboutTitle}</Text><Text style={publicStyles.publicSectionText}>{aboutDescription}</Text>{landingServices.length ? <><ScrollView contentContainerStyle={publicStyles.publicAboutServicesContent} horizontal onMouseEnter={() => { aboutServicesHoveredRef.current = true; }} onMouseLeave={() => { aboutServicesHoveredRef.current = false; }} onScroll={(event) => handleAboutServiceScroll(event.nativeEvent.contentOffset.x, event.nativeEvent.contentSize.width, event.nativeEvent.layoutMeasurement.width)} onMomentumScrollEnd={(event) => handleAboutServiceScrollEnd(event.nativeEvent.contentOffset.x)} ref={aboutServicesRef} scrollEventThrottle={16} showsHorizontalScrollIndicator={false} style={publicStyles.publicAboutServices}>{aboutCarouselItems.map((service, index) => <View key={`${index}-${service.id ?? service.name}`} style={publicStyles.publicAboutService}>{service.image ? <ImageBackground imageStyle={publicStyles.publicAboutServiceImage} source={{ uri: service.image }} style={publicStyles.publicAboutServiceImageContainer} /> : <View style={publicStyles.publicAboutServiceImageContainer} />}<View style={publicStyles.publicAboutServiceCopy}><Text style={publicStyles.publicAboutServiceTitle}>{service.name}</Text><Text style={publicStyles.publicAboutServiceDescription}>{service.description}</Text></View></View>)}</ScrollView><View style={publicStyles.publicAboutServiceDots}>{landingServices.map((service, index) => <Pressable accessibilityLabel={`Ir al servicio ${service.name}`} key={service.id ?? service.name} onPress={() => selectAboutService(index)} style={[publicStyles.publicAboutServiceDot, index === aboutServiceIndex && publicStyles.publicAboutServiceDotActive]} />)}</View></> : null}</View></Animated.View>
+      {googleReviews.length ? <Animated.View onLayout={(event) => setReviewsSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicReviewsSection, { minHeight: sectionHeight }, appear([Math.max(0, viewportHeight * 0.75), Math.max(1, viewportHeight * 1.35)])]}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Reseñas</Text><Text style={publicStyles.publicReviewsTitle}>Lo que dicen nuestros clientes</Text><View style={publicStyles.publicReviewsGrid}>{googleReviews.map((review, index) => <View key={`${review.author}-${index}`} style={publicStyles.publicReviewCard}><Text style={publicStyles.publicReviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text><Text style={publicStyles.publicReviewText}>{review.text}</Text><Text style={publicStyles.publicReviewAuthor}>{review.author}</Text>{review.url ? <Pressable onPress={() => void Linking.openURL(review.url || '')} style={publicStyles.publicReviewLink}><FontAwesomeIcon color="#4285f4" icon={faGoogle} size={14} /><Text style={publicStyles.publicReviewLinkText}>Ver reseña en Google Maps</Text></Pressable> : null}</View>)}</View></View></Animated.View> : null}
+      <Animated.View onLayout={(event) => setBookingSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBandSurface, { minHeight: sectionHeight }, bookingAppear]}>
+        <View style={publicStyles.publicContentContainer}>
+        <View style={publicStyles.publicBookingHeading}><View><Text style={styles.eyebrow}>Turnos</Text><Text style={publicStyles.publicSectionTitle}>Elegí el momento ideal</Text></View><Text style={publicStyles.publicBookingProgressText}>Paso {bookingStep + 1} de 4</Text></View>
+        <Text style={publicStyles.publicSectionText}>Seleccioná un día y horario disponible. Te vamos a confirmar la solicitud a la brevedad.</Text>
+        <View style={publicStyles.publicBookingProgress}><View style={publicStyles.publicBookingProgressDots}>{[0, 1, 2, 3].map((step) => <View key={step} style={[publicStyles.publicBookingProgressDot, step === bookingStep && publicStyles.publicBookingProgressDotActive]} />)}</View></View>
         <ScrollView
-          style={styles.publicBookingPager}
-          contentContainerStyle={styles.publicBookingPagerContent}
+          style={[publicStyles.publicBookingPager, { height: Math.max(sectionHeight, 620) }]}
+          contentContainerStyle={publicStyles.publicBookingPagerContent}
           horizontal
           onMomentumScrollEnd={(event) => setBookingStep(Math.round(event.nativeEvent.contentOffset.x / bookingStepWidth))}
           pagingEnabled
@@ -239,51 +317,50 @@ export function PublicBookingScreen({ username }: Props) {
           showsHorizontalScrollIndicator={false}
           snapToInterval={bookingStepWidth}
         >
-          <ScrollView nestedScrollEnabled style={[styles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={styles.publicBookingStepContent}>
-            <Text style={styles.publicStepNumber}>01</Text>
-            <Text style={styles.publicStepTitle}>¿Qué servicio necesitás?</Text>
-            <Text style={styles.publicSectionText}>Elegí una opción para continuar.</Text>
-            <View style={styles.publicServiceList}>{bookingServices.map((service) => <Pressable key={service.id ?? service.name} onPress={() => setSelectedService(service.name)} style={[styles.publicService, selectedService === service.name && styles.publicServiceSelected]}><Text style={selectedService === service.name ? styles.publicServiceTitleSelected : styles.publicServiceTitle}>{service.name}</Text><Text style={selectedService === service.name ? styles.publicServiceDescriptionSelected : styles.publicServiceDescription}>{service.description}</Text></Pressable>)}</View>
-            <Pressable onPress={() => goToBookingStep(1)} style={styles.button}><Text style={styles.buttonText}>Ver disponibilidad</Text></Pressable>
+          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+            <Text style={publicStyles.publicStepNumber}>01</Text>
+            <Text style={publicStyles.publicStepTitle}>¿Qué servicio necesitás?</Text>
+            <Text style={publicStyles.publicSectionText}>Elegí una opción para continuar.</Text>
+            <View style={publicStyles.publicServiceList}>{bookingServices.map((service) => <Pressable key={service.id ?? service.name} onPress={() => { setSelectedService(service.name); goToBookingStep(1); }} style={[publicStyles.publicService, selectedService === service.name && publicStyles.publicServiceSelected]}><Text style={selectedService === service.name ? publicStyles.publicServiceTitleSelected : publicStyles.publicServiceTitle}>{service.name}</Text><Text style={selectedService === service.name ? publicStyles.publicServiceDescriptionSelected : publicStyles.publicServiceDescription}>{service.description}</Text></Pressable>)}</View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[styles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={styles.publicBookingStepContent}>
-            <Text style={styles.publicStepNumber}>02</Text>
-            <Text style={styles.publicStepTitle}>Elegí disponibilidad</Text>
+          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+            <Text style={publicStyles.publicStepNumber}>02</Text>
+            <Text style={publicStyles.publicStepTitle}>Elegí disponibilidad</Text>
             <Text style={styles.label}>Fecha</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.publicCalendarDays}>{calendarDays.map((day) => {
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={publicStyles.publicCalendarDays}>{calendarDays.map((day) => {
               const key = dateKey(day);
-              return <Pressable key={key} onPress={() => setSelectedDate(key)} style={[styles.publicCalendarDay, key === selectedDate && styles.publicCalendarDaySelected]}><Text style={key === selectedDate ? styles.publicCalendarDaySelectedText : styles.publicCalendarDayText}>{String(day.getDate()).padStart(2, '0')}/{String(day.getMonth() + 1).padStart(2, '0')}</Text><Text style={key === selectedDate ? styles.publicCalendarDaySelectedWeekday : styles.publicCalendarDayWeekday}>{new Intl.DateTimeFormat('es-AR', { weekday: 'short' }).format(day).replace('.', '').slice(0, 3)}</Text></Pressable>;
+              return <Pressable key={key} onPress={() => setSelectedDate(key)} style={[publicStyles.publicCalendarDay, key === selectedDate && publicStyles.publicCalendarDaySelected]}><Text style={key === selectedDate ? publicStyles.publicCalendarDaySelectedText : publicStyles.publicCalendarDayText}>{String(day.getDate()).padStart(2, '0')}/{String(day.getMonth() + 1).padStart(2, '0')}</Text><Text style={key === selectedDate ? publicStyles.publicCalendarDaySelectedWeekday : publicStyles.publicCalendarDayWeekday}>{new Intl.DateTimeFormat('es-AR', { weekday: 'short' }).format(day).replace('.', '').slice(0, 3)}</Text></Pressable>;
             })}</ScrollView>
             <Text style={styles.label}>Horario</Text>
-            {loadingSlots ? <ActivityIndicator color={colors.accent} /> : slots.length ? <View style={styles.publicSlotGrid}>{slots.map((slot) => <Pressable key={slot.startsAt} onPress={() => setSelectedSlot(slot)} style={[styles.publicSlot, selectedSlot?.startsAt === slot.startsAt && styles.publicSlotSelected]}><Text style={selectedSlot?.startsAt === slot.startsAt ? styles.publicSlotSelectedText : styles.publicSlotText}>{formatSlot(slot.startsAt)}</Text></Pressable>)}</View> : <Text style={styles.empty}>No hay horarios disponibles para esta fecha.</Text>}
-            <View style={styles.publicStepActions}><Pressable onPress={() => goToBookingStep(0)} style={styles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable disabled={!selectedSlot} onPress={() => goToBookingStep(2)} style={[styles.publicStepAction, styles.publicStepActionPrimary, !selectedSlot && styles.buttonDisabled]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
+            {loadingSlots ? <ActivityIndicator color={colors.accent} /> : slots.length ? <View style={publicStyles.publicSlotGrid}>{slots.map((slot) => <Pressable key={slot.startsAt} onPress={() => setSelectedSlot(slot)} style={[publicStyles.publicSlot, selectedSlot?.startsAt === slot.startsAt && publicStyles.publicSlotSelected]}><Text style={selectedSlot?.startsAt === slot.startsAt ? publicStyles.publicSlotSelectedText : publicStyles.publicSlotText}>{formatSlot(slot.startsAt)}</Text></Pressable>)}</View> : <Text style={styles.empty}>No hay horarios disponibles para esta fecha.</Text>}
+            <View style={publicStyles.publicStepActions}><Pressable onPress={() => goToBookingStep(0)} style={publicStyles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable disabled={!selectedSlot} onPress={() => goToBookingStep(2)} style={[publicStyles.publicStepAction, publicStyles.publicStepActionPrimary, !selectedSlot && styles.buttonDisabled]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[styles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={styles.publicBookingStepContent}>
-            <Text style={styles.publicStepNumber}>03</Text>
-            <Text style={styles.publicStepTitle}>Tus datos de contacto</Text>
-            <Text style={styles.publicSectionText}>{selectedService} · {selectedSlot ? formatSlot(selectedSlot.startsAt) : 'Elegí un horario'}</Text>
+          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+            <Text style={publicStyles.publicStepNumber}>03</Text>
+            <Text style={publicStyles.publicStepTitle}>Tus datos de contacto</Text>
+            <Text style={publicStyles.publicSectionText}>{selectedService} · {selectedSlot ? formatSlot(selectedSlot.startsAt) : 'Elegí un horario'}</Text>
             <TextInput onChangeText={setName} placeholder="Nombre" placeholderTextColor={colors.textMuted} style={styles.input} value={name} />
             <TextInput autoCapitalize="none" keyboardType="email-address" onChangeText={setEmail} placeholder="Email" placeholderTextColor={colors.textMuted} style={styles.input} value={email} />
             <TextInput keyboardType="phone-pad" onChangeText={setPhone} placeholder="Teléfono" placeholderTextColor={colors.textMuted} style={styles.input} value={phone} />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <View style={styles.publicStepActions}><Pressable onPress={() => goToBookingStep(1)} style={styles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable onPress={() => goToBookingStep(3)} style={[styles.publicStepAction, styles.publicStepActionPrimary]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
+            <View style={publicStyles.publicStepActions}><Pressable onPress={() => goToBookingStep(1)} style={publicStyles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable onPress={() => goToBookingStep(3)} style={[publicStyles.publicStepAction, publicStyles.publicStepActionPrimary]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[styles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={styles.publicBookingStepContent}>
-            <Text style={styles.publicStepNumber}>04</Text>
-            <Text style={styles.publicStepTitle}>¿Querés agregar algo?</Text>
-            <Text style={styles.publicSectionText}>Este campo es opcional. Podés contarnos cualquier detalle antes de enviar la solicitud.</Text>
+          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+            <Text style={publicStyles.publicStepNumber}>04</Text>
+            <Text style={publicStyles.publicStepTitle}>¿Querés agregar algo?</Text>
+            <Text style={publicStyles.publicSectionText}>Este campo es opcional. Podés contarnos cualquier detalle antes de enviar la solicitud.</Text>
             <TextInput multiline numberOfLines={4} onChangeText={setNotes} placeholder="Notas opcionales" placeholderTextColor={colors.textMuted} style={[styles.input, styles.textArea]} value={notes} />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <View style={styles.publicStepActions}><Pressable onPress={() => goToBookingStep(2)} style={styles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable disabled={saving} onPress={submit} style={({ pressed }) => [styles.publicStepAction, styles.publicStepActionPrimary, pressed && styles.buttonPressed]}>{saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.buttonText}>Enviar solicitud</Text>}</Pressable></View>
+            <View style={publicStyles.publicStepActions}><Pressable onPress={() => goToBookingStep(2)} style={publicStyles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable disabled={saving} onPress={submit} style={({ pressed }) => [publicStyles.publicStepAction, publicStyles.publicStepActionPrimary, pressed && styles.buttonPressed]}>{saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.buttonText}>Enviar solicitud</Text>}</Pressable></View>
           </ScrollView>
         </ScrollView>
         </View>
       </Animated.View>
-      <View style={styles.publicFooter}>
-        <View style={styles.publicFooterContainer}>
-          <View style={styles.publicFooterBrand}><Text style={styles.publicFooterLogo}>eldavo</Text><Text style={styles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
-          <View style={styles.publicFooterLinks}><Text style={styles.publicFooterLink}>Sobre nosotros</Text><Text style={styles.publicFooterLink}>Privacidad</Text><Text style={styles.publicFooterLink}>Términos y condiciones</Text></View>
-          <Text style={styles.publicFooterCopyright}>© {new Date().getFullYear()} Eldavo</Text>
+      <View style={publicStyles.publicFooter}>
+        <View style={publicStyles.publicFooterContainer}>
+          <View style={publicStyles.publicFooterBrand}><Text style={publicStyles.publicFooterLogo}>eldavo</Text><Text style={publicStyles.publicFooterDescription}>Una forma simple de organizar tus turnos.</Text></View>
+          <View style={publicStyles.publicFooterLinks}><Text style={publicStyles.publicFooterLink}>Sobre nosotros</Text><Text style={publicStyles.publicFooterLink}>Privacidad</Text><Text style={publicStyles.publicFooterLink}>Términos y condiciones</Text></View>
+          <Text style={publicStyles.publicFooterCopyright}>© {new Date().getFullYear()} Eldavo</Text>
         </View>
       </View>
       </Animated.ScrollView>
