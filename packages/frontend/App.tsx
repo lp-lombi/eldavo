@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform, SafeAreaView, StatusBar as NativeStatusBar } from 'react-native';
+import { ActivityIndicator, Platform, SafeAreaView, StatusBar as NativeStatusBar, Text, View } from 'react-native';
 import { ClientDetails } from './src/features/clients/components/ClientDetails';
 import { AdminScreen } from './src/features/admin/screens/AdminScreen';
 import { ClientsScreen } from './src/features/clients/screens/ClientsScreen';
@@ -12,15 +12,45 @@ import { InventoryScreen } from './src/features/inventory/screens/InventoryScree
 import { OrderCreateScreen } from './src/features/orders/screens/OrderCreateScreen';
 import { SettingsScreen } from './src/features/settings/screens/SettingsScreen';
 import { GoogleCalendarConnection } from './src/features/settings/components/GoogleCalendarConnection';
+import { ConstructionScreen } from './src/features/public/screens/ConstructionScreen';
 import { PublicBookingScreen } from './src/features/public/screens/PublicBookingScreen';
-import { Client, Order, Session } from './src/services';
+import { AppointmentDetailsScreen } from './src/features/appointments/screens/AppointmentDetailsScreen';
+import { clearStoredSession, loadStoredSession, saveStoredSession } from './src/features/auth/services/sessionStorage';
+import { Appointment, Client, getAppointment, getClient, getOrders, Order, Session } from './src/services';
 import { colors, styles } from './src/shared';
+
+type WebRoute = 'home' | 'login' | 'panel' | 'config' | 'admin' | 'orders' | 'order' | 'clients' | 'client' | 'appointments' | 'appointment' | 'public' | 'unknown';
+type RouteState = { route: WebRoute; publicUsername?: string; resourceId?: number };
+
+function getRoute(pathname: string): RouteState {
+  const path = pathname.replace(/\/+$/, '') || '/';
+  if (path === '/') return { route: 'home' };
+  if (path === '/login') return { route: 'login' };
+  if (path === '/panel') return { route: 'panel' };
+  if (path === '/panel/config') return { route: 'config' };
+  if (path === '/admin') return { route: 'admin' };
+  const resourceMatch = path.match(/^\/(pedidos|clientes|turnos)(?:\/(\d+))?$/);
+  if (resourceMatch) {
+    const route: WebRoute = resourceMatch[1] === 'pedidos' ? resourceMatch[2] ? 'order' : 'orders' : resourceMatch[1] === 'clientes' ? resourceMatch[2] ? 'client' : 'clients' : resourceMatch[2] ? 'appointment' : 'appointments';
+    return { route, resourceId: resourceMatch[2] ? Number(resourceMatch[2]) : undefined };
+  }
+  if (/^\/[^/]+$/.test(path)) {
+    try {
+      return { route: 'public', publicUsername: decodeURIComponent(path.slice(1)) };
+    } catch {
+      return { route: 'unknown' };
+    }
+  }
+  return { route: 'unknown' };
+}
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [adminPath, setAdminPath] = useState(Platform.OS === 'web' && typeof window !== 'undefined' && window.location.pathname === '/admin');
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [routeState, setRouteState] = useState<RouteState>(() => Platform.OS === 'web' && typeof window !== 'undefined' ? getRoute(window.location.pathname) : { route: 'login' });
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [clientsScreenOpen, setClientsScreenOpen] = useState(false);
   const [ordersScreenOpen, setOrdersScreenOpen] = useState(false);
   const [inventoryScreenOpen, setInventoryScreenOpen] = useState(false);
@@ -28,22 +58,42 @@ export default function App() {
   const [orderCreateClient, setOrderCreateClient] = useState<Client | undefined>();
   const [settingsScreenOpen, setSettingsScreenOpen] = useState(false);
   const [calendarConnectionVisible, setCalendarConnectionVisible] = useState(false);
-  const publicUsername = Platform.OS === 'web' && typeof window !== 'undefined' && window.location.pathname.startsWith('/') && !['/', '/admin'].includes(window.location.pathname) ? window.location.pathname.slice(1) : '';
+  const [routeError, setRouteError] = useState('');
+
+  useEffect(() => {
+    void loadStoredSession().then((storedSession) => {
+      setSession(storedSession);
+      setSessionRestored(true);
+    }).catch((error) => {
+      console.error('No se pudo restaurar la sesión', error);
+      setSessionRestored(true);
+    });
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-
+    const handlePopState = () => setRouteState(getRoute(window.location.pathname));
+    window.addEventListener('popstate', handlePopState);
     document.documentElement.style.backgroundColor = colors.background;
     document.documentElement.style.setProperty('overscroll-behavior-y', 'none');
     document.body.style.backgroundColor = colors.background;
     document.body.style.setProperty('overscroll-behavior-y', 'none');
     document.getElementById('root')?.style.setProperty('background-color', colors.background);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  const navigate = (path: string) => {
+    if (Platform.OS !== 'web') return;
+    window.history.pushState({}, '', path);
+    setRouteState(getRoute(path));
+  };
 
   const logout = () => {
     setSession(null);
+    void clearStoredSession().catch((error) => console.error('No se pudo limpiar la sesión', error));
     setSelectedClient(null);
     setSelectedOrder(null);
+    setSelectedAppointment(null);
     setClientsScreenOpen(false);
     setOrdersScreenOpen(false);
     setInventoryScreenOpen(false);
@@ -51,17 +101,61 @@ export default function App() {
     setOrderCreateClient(undefined);
     setSettingsScreenOpen(false);
     setCalendarConnectionVisible(false);
+    navigate('/login');
   };
 
   const updateSelectedOrder = (order: Order) => setSelectedOrder(order);
-
   const openOrderCreate = (client?: Client) => { setOrderCreateClient(client); setOrderCreateScreenOpen(true); };
   const closeOrderCreate = () => { setOrderCreateScreenOpen(false); setOrderCreateClient(undefined); };
-  const openAdmin = () => { if (Platform.OS === 'web') window.history.pushState({}, '', '/admin'); setAdminPath(true); };
-  const openSettings = () => { setAdminPath(false); setSettingsScreenOpen(true); };
+  const openClients = () => Platform.OS === 'web' ? navigate('/clientes') : setClientsScreenOpen(true);
+  const openOrders = () => Platform.OS === 'web' ? navigate('/pedidos') : setOrdersScreenOpen(true);
+  const openAdmin = () => navigate('/admin');
+  const openSettings = () => Platform.OS === 'web' ? navigate('/panel/config') : setSettingsScreenOpen(true);
   const openCalendarSettings = () => setCalendarConnectionVisible(true);
-  const closeAdmin = () => { if (Platform.OS === 'web') window.history.pushState({}, '', '/'); setAdminPath(false); setSettingsScreenOpen(true); };
-  const isAdminPath = Platform.OS === 'web' && adminPath;
-  const openClientLogin = () => { if (Platform.OS === 'web') window.history.pushState({}, '', '/'); setAdminPath(false); setSession(null); };
-  return <SafeAreaView style={[styles.safeArea, Platform.OS === 'android' && { paddingTop: NativeStatusBar.currentHeight ?? 0 }]}><StatusBar backgroundColor={colors.background} style="light" />{publicUsername ? <PublicBookingScreen username={publicUsername} /> : session ? isAdminPath && session.user.role === 'admin' ? <AdminScreen onBack={closeAdmin} session={session} /> : settingsScreenOpen ? <SettingsScreen onBack={() => setSettingsScreenOpen(false)} onOpenAdmin={openAdmin} onOpenCalendar={openCalendarSettings} session={session} /> : orderCreateScreenOpen ? <OrderCreateScreen initialClient={orderCreateClient} onBack={closeOrderCreate} onCreated={closeOrderCreate} token={session.token} /> : selectedOrder ? <OrderDetails onBack={() => setSelectedOrder(null)} onUpdated={updateSelectedOrder} order={selectedOrder} token={session.token} /> : selectedClient ? <ClientDetails client={selectedClient} onBack={() => setSelectedClient(null)} onOpenOrderCreate={openOrderCreate} onSelectOrder={setSelectedOrder} token={session.token} /> : clientsScreenOpen ? <ClientsScreen onBack={() => setClientsScreenOpen(false)} onSelectClient={setSelectedClient} token={session.token} /> : ordersScreenOpen ? <OrdersScreen onBack={() => setOrdersScreenOpen(false)} onOpenOrderCreate={() => openOrderCreate()} onSelectOrder={setSelectedOrder} token={session.token} /> : inventoryScreenOpen ? <InventoryScreen onBack={() => setInventoryScreenOpen(false)} token={session.token} /> : <Dashboard onLogout={logout} onOpenSettings={openSettings} onOpenClients={() => setClientsScreenOpen(true)} onOpenOrders={() => setOrdersScreenOpen(true)} onOpenInventory={() => setInventoryScreenOpen(true)} onOpenOrderCreate={() => openOrderCreate()} onSelectClient={setSelectedClient} onSelectOrder={setSelectedOrder} session={session} /> : <LoginScreen isAdmin={isAdminPath} onLogin={setSession} onOpenAdmin={openAdmin} onOpenClient={openClientLogin} />} {session ? <GoogleCalendarConnection onClose={() => setCalendarConnectionVisible(false)} token={session.token} visible={calendarConnectionVisible} /> : null}</SafeAreaView>;
+  const closeAdmin = () => navigate('/panel');
+  const openClientLogin = () => { setSession(null); navigate('/login'); };
+  const isAdminPath = routeState.route === 'admin';
+  const publicUsername = routeState.route === 'public' ? routeState.publicUsername : undefined;
+  const showConfig = routeState.route === 'config' || (Platform.OS !== 'web' && settingsScreenOpen);
+  const protectedRoute = ['panel', 'config', 'admin', 'orders', 'order', 'clients', 'client', 'appointments', 'appointment'].includes(routeState.route);
+  const showLogin = routeState.route === 'login' || routeState.route === 'unknown' || protectedRoute && !session || (Platform.OS !== 'web' && !session);
+
+  useEffect(() => {
+    if (!session || !routeState.resourceId || !['client', 'order', 'appointment'].includes(routeState.route)) return;
+    setRouteError('');
+    if (routeState.route === 'client') {
+      void getClient(session.token, routeState.resourceId).then(setSelectedClient).catch((error) => setRouteError(error instanceof Error ? error.message : 'No se pudo cargar el cliente'));
+    } else if (routeState.route === 'order') {
+      void getOrders(session.token).then((orders) => {
+        const order = orders.find((item) => item.id === routeState.resourceId);
+        if (!order) throw new Error('Pedido no encontrado');
+        setSelectedOrder(order);
+      }).catch((error) => setRouteError(error instanceof Error ? error.message : 'No se pudo cargar el pedido'));
+    } else {
+      void getAppointment(session.token, routeState.resourceId).then(setSelectedAppointment).catch((error) => setRouteError(error instanceof Error ? error.message : 'No se pudo cargar el turno'));
+    }
+  }, [routeState.resourceId, routeState.route, session]);
+
+  const panelContent = session && isAdminPath && session.user.role === 'admin' ? <AdminScreen onBack={closeAdmin} session={session} /> :
+    session && showConfig ? <SettingsScreen onBack={() => Platform.OS === 'web' ? navigate('/panel') : setSettingsScreenOpen(false)} onOpenAdmin={openAdmin} onOpenCalendar={openCalendarSettings} session={session} /> :
+      session && orderCreateScreenOpen ? <OrderCreateScreen initialClient={orderCreateClient} onBack={closeOrderCreate} onCreated={closeOrderCreate} token={session.token} /> :
+        session && routeState.route === 'appointment' && selectedAppointment ? <AppointmentDetailsScreen appointment={selectedAppointment} onBack={() => { setSelectedAppointment(null); navigate('/panel'); }} onUpdated={setSelectedAppointment} token={session.token} /> :
+          session && ((routeState.route === 'order' && selectedOrder) || (Platform.OS !== 'web' && selectedOrder)) ? <OrderDetails onBack={() => { setSelectedOrder(null); routeState.route === 'order' ? navigate('/pedidos') : undefined; }} onUpdated={updateSelectedOrder} order={selectedOrder as Order} token={session.token} /> :
+          session && ((routeState.route === 'client' && selectedClient) || (Platform.OS !== 'web' && selectedClient)) ? <ClientDetails client={selectedClient as Client} onBack={() => { setSelectedClient(null); routeState.route === 'client' ? navigate('/clientes') : undefined; }} onOpenOrderCreate={openOrderCreate} onSelectOrder={(order) => { setSelectedOrder(order); if (Platform.OS === 'web') navigate(`/pedidos/${order.id}`); }} token={session.token} /> :
+            session && (routeState.route === 'clients' || clientsScreenOpen) ? <ClientsScreen onBack={() => Platform.OS === 'web' ? navigate('/panel') : setClientsScreenOpen(false)} onSelectClient={(client) => { setSelectedClient(client); if (Platform.OS === 'web') navigate(`/clientes/${client.id}`); }} token={session.token} /> :
+              session && (routeState.route === 'orders' || ordersScreenOpen) ? <OrdersScreen onBack={() => Platform.OS === 'web' ? navigate('/panel') : setOrdersScreenOpen(false)} onOpenOrderCreate={() => openOrderCreate()} onSelectOrder={(order) => { setSelectedOrder(order); if (Platform.OS === 'web') navigate(`/pedidos/${order.id}`); }} token={session.token} /> :
+                session && inventoryScreenOpen ? <InventoryScreen onBack={() => setInventoryScreenOpen(false)} token={session.token} /> :
+                  session ? <Dashboard onLogout={logout} onOpenSettings={openSettings} onOpenClients={openClients} onOpenOrders={openOrders} onOpenInventory={() => setInventoryScreenOpen(true)} onOpenOrderCreate={() => openOrderCreate()} onSelectClient={(client) => { setSelectedClient(client); if (Platform.OS === 'web') navigate(`/clientes/${client.id}`); }} onSelectOrder={(order) => { setSelectedOrder(order); if (Platform.OS === 'web') navigate(`/pedidos/${order.id}`); }} onSelectAppointment={(appointment) => { setSelectedAppointment(appointment); if (Platform.OS === 'web') navigate(`/turnos/${appointment.id}`); }} session={session} /> : null;
+
+  const content = !sessionRestored ? <View style={[styles.screen, styles.loadingScreen]}><ActivityIndicator color={colors.accent} /></View> :
+    publicUsername ? <PublicBookingScreen username={publicUsername} /> :
+    routeState.route === 'home' ? <ConstructionScreen /> :
+      showLogin ? <LoginScreen isAdmin={isAdminPath} onLogin={(newSession) => { setSession(newSession); void saveStoredSession(newSession).catch((error) => console.error('No se pudo guardar la sesión', error)); navigate('/panel'); }} onOpenAdmin={openAdmin} onOpenClient={openClientLogin} /> :
+        session ? routeError ? <Text style={styles.error}>{routeError}</Text> : panelContent : <ConstructionScreen />;
+
+  return <SafeAreaView style={[styles.safeArea, Platform.OS === 'android' && { paddingTop: NativeStatusBar.currentHeight ?? 0 }]}>
+    <StatusBar backgroundColor={colors.background} style="light" />
+    {content}
+    {session ? <GoogleCalendarConnection onClose={() => setCalendarConnectionVisible(false)} token={session.token} visible={calendarConnectionVisible} /> : null}
+  </SafeAreaView>;
 }

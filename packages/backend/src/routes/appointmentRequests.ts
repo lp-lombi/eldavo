@@ -3,8 +3,9 @@ import { DataSource } from 'typeorm';
 import { Appointment } from '../entities/Appointment';
 import { AppointmentRequest } from '../entities/AppointmentRequest';
 import { Client } from '../entities/Client';
-import { syncAppointmentToGoogle } from '../google';
+import { isGoogleInvalidGrant, syncAppointmentToGoogle } from '../google';
 import { GoogleCalendarConnection } from '../entities/GoogleCalendarConnection';
+import { sendAppointmentConfirmationEmail } from '../email';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLocaleLowerCase();
@@ -69,7 +70,12 @@ export function createAppointmentRequestRouter(dataSource: DataSource): Router {
         appointment.syncStatus = 'synced';
       } catch (error) {
         appointment.syncStatus = 'failed';
-        appointment.syncError = error instanceof Error ? error.message : 'Google Calendar synchronization failed';
+        if (isGoogleInvalidGrant(error)) {
+          await connections.delete({ ownerId: appointment.ownerId });
+          appointment.syncError = 'La conexión con Google expiró. Volvé a conectar Google Calendar desde Configuración.';
+        } else {
+          appointment.syncError = error instanceof Error ? error.message : 'Google Calendar synchronization failed';
+        }
       }
       await appointments.save(appointment);
     } else {
@@ -79,7 +85,13 @@ export function createAppointmentRequestRouter(dataSource: DataSource): Router {
     appointmentRequest.status = 'confirmed';
     appointmentRequest.appointmentId = appointment.id;
     await requests.save(appointmentRequest);
-    response.status(201).json(appointment);
+    let emailSent = false;
+    try {
+      emailSent = await sendAppointmentConfirmationEmail({ recipient: requesterEmail, requesterName: appointmentRequest.requesterName, title: appointment.title, startsAt: appointment.startsAt, endsAt: appointment.endsAt });
+    } catch (error) {
+      console.error('Appointment confirmation email failed', error);
+    }
+    response.status(201).json({ ...appointment, notification: { emailSent } });
   });
 
   return router;

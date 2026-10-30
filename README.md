@@ -20,6 +20,10 @@ npm run dev
 
 La API queda disponible en `http://localhost:3005`.
 
+Para Google Calendar, registra `http://localhost:3005/api/auth/google/callback` como URI de redirección autorizada en Google Cloud Console y usa ese mismo valor en `GOOGLE_REDIRECT_URI`.
+
+Para enviar correos al confirmar turnos, configura `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` en `.env`. Desde el detalle de un turno también se puede reenviar la confirmación mediante `POST /api/appointments/:id/confirmation-email`; el turno debe tener un cliente con email.
+
 Para compilar la aplicación web y servirla desde el mismo servidor del backend:
 
 ```bash
@@ -70,7 +74,7 @@ npm run dev
 
 Si `.env` existe pero le faltan valores obligatorios, el backend tambien avisara y no iniciara.
 
-`ADMIN_PASSWORD` se convierte en hash antes de guardarse. El login es `POST /auth/login` y devuelve un token JWT; envialo en las rutas protegidas como `Authorization: Bearer <token>`.
+`ADMIN_PASSWORD` se convierte en hash antes de guardarse. El login es `POST /api/auth/login` y devuelve un token JWT; envialo en las rutas protegidas como `Authorization: Bearer <token>`.
 
 ## Tests
 
@@ -93,12 +97,14 @@ Los comandos ejecutados desde la raiz se delegan al paquete backend. Tambien pue
 
 ## Endpoints
 
-- `GET /health`
-- `POST /auth/login` con `username` y `password`
-- `GET /clients` (requiere login)
-- `GET /clients/:id` (requiere login)
-- `POST /clients` (requiere login), con `name` obligatorio y `email`, `phone`, `address` opcionales
-- `GET /orders` (requiere login)
-- `POST /orders` (requiere login), con `clientId` y `value` obligatorios, y `completionDate` opcional
+Todos los endpoints de API usan el prefijo `/api`:
+
+- `GET /api/health`
+- `POST /api/api/auth/login` con `username` y `password`
+- `GET /api/clients` (requiere login)
+- `GET /api/clients/:id` (requiere login)
+- `POST /api/clients` (requiere login), con `name` obligatorio y `email`, `phone`, `address` opcionales
+- `GET /api/orders` (requiere login)
+- `POST /api/orders` (requiere login), con `clientId` y `value` obligatorios, y `completionDate` opcional
 
 La coleccion [packages/backend/postman/eldavo-backend.postman_collection.json](packages/backend/postman/eldavo-backend.postman_collection.json) se puede importar directamente en Postman.

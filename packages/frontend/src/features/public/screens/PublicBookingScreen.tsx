@@ -4,7 +4,7 @@ import { faGoogle } from '@fortawesome/free-brands-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import heroImage from '../../../assets/esmeralda.jpg';
 import { LandingService, PublicAvailabilitySlot } from '../../../services';
-import { colors, styles } from '../../../shared';
+import { colors, spacing, styles } from '../../../shared';
 import { usePublicBooking } from '../hooks/usePublicBooking';
 import { publicStyles } from './PublicBookingScreen.styles';
 
@@ -44,6 +44,8 @@ export function PublicBookingScreen({ username }: Props) {
   const [selectedService, setSelectedService] = useState('Obtener turno');
   const [bookingStep, setBookingStep] = useState(0);
   const [bookingSectionY, setBookingSectionY] = useState<number | null>(null);
+  const [bookingHeaderHeight, setBookingHeaderHeight] = useState(0);
+  const [bookingStepContentHeights, setBookingStepContentHeights] = useState<number[]>([]);
   const [aboutSectionY, setAboutSectionY] = useState<number | null>(null);
   const [reviewsSectionY, setReviewsSectionY] = useState<number | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -276,6 +278,13 @@ export function PublicBookingScreen({ username }: Props) {
     ? landingServices
     : [{ name: 'Obtener turno', description: 'Elegí un día y horario disponible para reservar.' }];
   const sectionHeight = Math.max(viewportHeight - 72, 0);
+  const bookingStepContentHeight = Math.max(0, ...bookingStepContentHeights);
+  const bookingPagerHeight = Math.max(sectionHeight - bookingHeaderHeight - spacing.lg * 2, bookingStepContentHeight);
+  const updateBookingStepHeight = (step: number, height: number) => setBookingStepContentHeights((current) => {
+    const next = [...current];
+    next[step] = height;
+    return next;
+  });
   const appear = (inputRange: [number, number]) => ({
     opacity: scrollY.interpolate({ inputRange, outputRange: [0.1, 1], extrapolate: 'clamp' }),
     transform: [{ translateY: scrollY.interpolate({ inputRange, outputRange: [64, 0], extrapolate: 'clamp' }) }],
@@ -304,11 +313,13 @@ export function PublicBookingScreen({ username }: Props) {
       {googleReviews.length ? <Animated.View onLayout={(event) => setReviewsSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicReviewsSection, { minHeight: sectionHeight }, appear([Math.max(0, viewportHeight * 0.75), Math.max(1, viewportHeight * 1.35)])]}><View style={publicStyles.publicContentContainer}><Text style={styles.eyebrow}>Reseñas</Text><Text style={publicStyles.publicReviewsTitle}>Lo que dicen nuestros clientes</Text><View style={publicStyles.publicReviewsGrid}>{googleReviews.map((review, index) => <View key={`${review.author}-${index}`} style={publicStyles.publicReviewCard}><Text style={publicStyles.publicReviewStars}>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</Text><Text style={publicStyles.publicReviewText}>{review.text}</Text><Text style={publicStyles.publicReviewAuthor}>{review.author}</Text>{review.url ? <Pressable onPress={() => void Linking.openURL(review.url || '')} style={publicStyles.publicReviewLink}><FontAwesomeIcon color="#4285f4" icon={faGoogle} size={14} /><Text style={publicStyles.publicReviewLinkText}>Ver reseña en Google Maps</Text></Pressable> : null}</View>)}</View></View></Animated.View> : null}
       <Animated.View onLayout={(event) => setBookingSectionY(event.nativeEvent.layout.y)} style={[publicStyles.publicLandingBandSurface, { minHeight: sectionHeight }, bookingAppear]}>
         <View style={publicStyles.publicContentContainer}>
-        <View style={publicStyles.publicBookingHeading}><View><Text style={styles.eyebrow}>Turnos</Text><Text style={publicStyles.publicSectionTitle}>Elegí el momento ideal</Text></View><Text style={publicStyles.publicBookingProgressText}>Paso {bookingStep + 1} de 4</Text></View>
-        <Text style={publicStyles.publicSectionText}>Seleccioná un día y horario disponible. Te vamos a confirmar la solicitud a la brevedad.</Text>
-        <View style={publicStyles.publicBookingProgress}><View style={publicStyles.publicBookingProgressDots}>{[0, 1, 2, 3].map((step) => <View key={step} style={[publicStyles.publicBookingProgressDot, step === bookingStep && publicStyles.publicBookingProgressDotActive]} />)}</View></View>
+        <View onLayout={(event) => setBookingHeaderHeight(event.nativeEvent.layout.height)}>
+          <View style={publicStyles.publicBookingHeading}><View><Text style={styles.eyebrow}>Turnos</Text><Text style={publicStyles.publicSectionTitle}>Elegí el momento ideal</Text></View><Text style={publicStyles.publicBookingProgressText}>Paso {bookingStep + 1} de 4</Text></View>
+          <Text style={publicStyles.publicSectionText}>Seleccioná un día y horario disponible. Te vamos a confirmar la solicitud a la brevedad.</Text>
+          <View style={publicStyles.publicBookingProgress}><View style={publicStyles.publicBookingProgressDots}>{[0, 1, 2, 3].map((step) => <View key={step} style={[publicStyles.publicBookingProgressDot, step === bookingStep && publicStyles.publicBookingProgressDotActive]} />)}</View></View>
+        </View>
         <ScrollView
-          style={[publicStyles.publicBookingPager, { height: Math.max(sectionHeight, 620) }]}
+          style={[publicStyles.publicBookingPager, { height: bookingPagerHeight }]}
           contentContainerStyle={publicStyles.publicBookingPagerContent}
           horizontal
           onMomentumScrollEnd={(event) => setBookingStep(Math.round(event.nativeEvent.contentOffset.x / bookingStepWidth))}
@@ -317,13 +328,13 @@ export function PublicBookingScreen({ username }: Props) {
           showsHorizontalScrollIndicator={false}
           snapToInterval={bookingStepWidth}
         >
-          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+          <ScrollView nestedScrollEnabled onContentSizeChange={(_width, height) => updateBookingStepHeight(0, height)} style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
             <Text style={publicStyles.publicStepNumber}>01</Text>
             <Text style={publicStyles.publicStepTitle}>¿Qué servicio necesitás?</Text>
             <Text style={publicStyles.publicSectionText}>Elegí una opción para continuar.</Text>
             <View style={publicStyles.publicServiceList}>{bookingServices.map((service) => <Pressable key={service.id ?? service.name} onPress={() => { setSelectedService(service.name); goToBookingStep(1); }} style={[publicStyles.publicService, selectedService === service.name && publicStyles.publicServiceSelected]}><Text style={selectedService === service.name ? publicStyles.publicServiceTitleSelected : publicStyles.publicServiceTitle}>{service.name}</Text><Text style={selectedService === service.name ? publicStyles.publicServiceDescriptionSelected : publicStyles.publicServiceDescription}>{service.description}</Text></Pressable>)}</View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+          <ScrollView nestedScrollEnabled onContentSizeChange={(_width, height) => updateBookingStepHeight(1, height)} style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
             <Text style={publicStyles.publicStepNumber}>02</Text>
             <Text style={publicStyles.publicStepTitle}>Elegí disponibilidad</Text>
             <Text style={styles.label}>Fecha</Text>
@@ -335,7 +346,7 @@ export function PublicBookingScreen({ username }: Props) {
             {loadingSlots ? <ActivityIndicator color={colors.accent} /> : slots.length ? <View style={publicStyles.publicSlotGrid}>{slots.map((slot) => <Pressable key={slot.startsAt} onPress={() => setSelectedSlot(slot)} style={[publicStyles.publicSlot, selectedSlot?.startsAt === slot.startsAt && publicStyles.publicSlotSelected]}><Text style={selectedSlot?.startsAt === slot.startsAt ? publicStyles.publicSlotSelectedText : publicStyles.publicSlotText}>{formatSlot(slot.startsAt)}</Text></Pressable>)}</View> : <Text style={styles.empty}>No hay horarios disponibles para esta fecha.</Text>}
             <View style={publicStyles.publicStepActions}><Pressable onPress={() => goToBookingStep(0)} style={publicStyles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable disabled={!selectedSlot} onPress={() => goToBookingStep(2)} style={[publicStyles.publicStepAction, publicStyles.publicStepActionPrimary, !selectedSlot && styles.buttonDisabled]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+          <ScrollView nestedScrollEnabled onContentSizeChange={(_width, height) => updateBookingStepHeight(2, height)} style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
             <Text style={publicStyles.publicStepNumber}>03</Text>
             <Text style={publicStyles.publicStepTitle}>Tus datos de contacto</Text>
             <Text style={publicStyles.publicSectionText}>{selectedService} · {selectedSlot ? formatSlot(selectedSlot.startsAt) : 'Elegí un horario'}</Text>
@@ -345,7 +356,7 @@ export function PublicBookingScreen({ username }: Props) {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <View style={publicStyles.publicStepActions}><Pressable onPress={() => goToBookingStep(1)} style={publicStyles.publicStepActionSecondary}><Text style={styles.secondaryText}>Atrás</Text></Pressable><Pressable onPress={() => goToBookingStep(3)} style={[publicStyles.publicStepAction, publicStyles.publicStepActionPrimary]}><Text style={styles.buttonText}>Continuar</Text></Pressable></View>
           </ScrollView>
-          <ScrollView nestedScrollEnabled style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
+          <ScrollView nestedScrollEnabled onContentSizeChange={(_width, height) => updateBookingStepHeight(3, height)} style={[publicStyles.publicBookingStep, { width: bookingStepWidth }]} contentContainerStyle={publicStyles.publicBookingStepContent}>
             <Text style={publicStyles.publicStepNumber}>04</Text>
             <Text style={publicStyles.publicStepTitle}>¿Querés agregar algo?</Text>
             <Text style={publicStyles.publicSectionText}>Este campo es opcional. Podés contarnos cualquier detalle antes de enviar la solicitud.</Text>

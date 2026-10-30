@@ -67,4 +67,10 @@ export async function deleteAppointmentFromGoogle(connection: GoogleCalendarConn
   await google.calendar({ version: 'v3', auth: client }).events.delete({ calendarId: connection.calendarId, eventId: appointment.googleEventId });
 }
 
+export function isGoogleInvalidGrant(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { message?: unknown; response?: { data?: { error?: unknown } } };
+  return candidate.response?.data?.error === 'invalid_grant' || (typeof candidate.message === 'string' && candidate.message.includes('invalid_grant'));
+}
+
 export { googleScopes };

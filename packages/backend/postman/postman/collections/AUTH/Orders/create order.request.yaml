@@ -1,6 +1,6 @@
 $kind: http-request
 method: POST
-url: '{{baseUrl}}/orders'
+url: '{{baseUrl}}/api/orders'
 order: 349156940572
 headers:
   - key: Content-Type

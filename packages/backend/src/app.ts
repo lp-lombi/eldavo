@@ -25,28 +25,28 @@ export function createApp(dataSource: DataSource): express.Express {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
-  app.get('/health', (_request, response) => {
+  app.get('/api/health', (_request, response) => {
     response.json({ status: 'ok' });
   });
 
-  app.use('/auth', createAuthRouter(dataSource));
-  app.use('/public-booking', createPublicBookingRouter(dataSource));
+  app.use('/api/auth', createAuthRouter(dataSource));
+  app.use('/api/public-booking', createPublicBookingRouter(dataSource));
   if (frontendDirectory) {
     app.get('/admin', (_request, response) => response.sendFile(path.join(frontendDirectory, 'index.html')));
   }
-  app.use('/admin', requireAdmin, createAdminRouter(dataSource));
-  app.use('/clients', requireAuth, createClientRouter(dataSource));
-  app.use('/tags', requireAuth, createTagRouter(dataSource));
-  app.use('/stock', requireAuth, createStockRouter(dataSource));
-  app.use('/orders', requireAuth, createOrderRouter(dataSource));
-  app.use('/appointments', requireAuth, createAppointmentRouter(dataSource));
-  app.use('/appointment-requests', requireAuth, createAppointmentRequestRouter(dataSource));
-  app.use('/export.csv', requireAuth, createExportRouter(dataSource));
+  app.use('/api/admin', requireAdmin, createAdminRouter(dataSource));
+  app.use('/api/clients', requireAuth, createClientRouter(dataSource));
+  app.use('/api/tags', requireAuth, createTagRouter(dataSource));
+  app.use('/api/stock', requireAuth, createStockRouter(dataSource));
+  app.use('/api/orders', requireAuth, createOrderRouter(dataSource));
+  app.use('/api/appointments', requireAuth, createAppointmentRouter(dataSource));
+  app.use('/api/appointment-requests', requireAuth, createAppointmentRequestRouter(dataSource));
+  app.use('/api/export.csv', requireAuth, createExportRouter(dataSource));
 
   if (frontendDirectory) {
     app.use(express.static(frontendDirectory));
     app.use((request, response, next) => {
-      const isApiRequest = ['/health', '/auth', '/public-booking', '/admin/', '/clients', '/tags', '/stock', '/orders', '/appointments', '/appointment-requests', '/export.csv']
+      const isApiRequest = ['/api']
         .some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`));
 
       if (request.method === 'GET' && !isApiRequest && request.accepts('html')) {

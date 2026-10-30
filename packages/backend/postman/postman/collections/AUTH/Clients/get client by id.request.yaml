@@ -1,6 +1,6 @@
 $kind: http-request
 method: GET
-url: '{{baseUrl}}/clients/:id'
+url: '{{baseUrl}}/api/clients/:id'
 order: 2802557030093067
 pathVariables:
   - key: id

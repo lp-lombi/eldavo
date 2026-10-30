@@ -8,7 +8,7 @@ export type Order = { id: number; createdAt: string; clientId: number; title: st
 export type Note = { id: number; text: string; createdAt: string };
 export type Session = { token: string; user: User };
 export type StockItem = { id: number; name: string; quantity: number; unit: string; minimumQuantity?: number | null };
-export type Appointment = { id: number; ownerId: number; clientId?: number | null; client?: { name: string } | null; title: string; description?: string | null; startsAt: string; endsAt: string; status: 'scheduled' | 'completed' | 'cancelled'; syncStatus: 'not_connected' | 'pending' | 'synced' | 'failed'; syncError?: string | null; googleEventId?: string | null; createdAt: string };
+export type Appointment = { id: number; ownerId: number; clientId?: number | null; client?: { id: number; name: string; email?: string | null; phone?: string | null; address?: string | null } | null; title: string; description?: string | null; startsAt: string; endsAt: string; status: 'scheduled' | 'completed' | 'cancelled'; syncStatus: 'not_connected' | 'pending' | 'synced' | 'failed'; syncError?: string | null; googleEventId?: string | null; createdAt: string };
 export type AppointmentRequest = { id: number; ownerId: number; requesterName: string; requesterEmail: string; requesterPhone?: string | null; notes?: string | null; startsAt: string; endsAt: string; status: 'pending' | 'confirmed' | 'rejected'; createdAt: string };
 export type LandingService = { id?: number; name: string; description: string; image?: string | null; sortOrder?: number };
 export type GoogleReview = { author: string; text: string; rating: number; url?: string | null };
@@ -23,9 +23,10 @@ const isProductionWeb = Platform.OS === 'web' && process.env.NODE_ENV === 'produ
 const localApiUrl = Platform.OS === 'android' ? 'http://10.0.2.2:3005' : 'http://localhost:3005';
 const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const apiUrl = isProductionAndroid ? publicApiUrl : isProductionWeb ? configuredApiUrl || '' : configuredApiUrl || localApiUrl;
+const apiPrefix = '/api';
 
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
-  const response = await fetch(`${apiUrl}${path}`, {
+  const response = await fetch(`${apiUrl}${apiPrefix}${path}`, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   });
@@ -73,6 +74,9 @@ export function createUser(token: string, username: string, password: string): P
 export function getClients(token: string): Promise<Client[]> {
   return request<Client[]>('/clients', {}, token);
 }
+export function getClient(token: string, clientId: number): Promise<Client> {
+  return request<Client>(`/clients/${clientId}`, {}, token);
+}
 export function getTags(token: string): Promise<Tag[]> { return request<Tag[]>('/tags', {}, token); }
 export function createTag(token: string, name: string, color: string): Promise<Tag> { return request<Tag>('/tags', { method: 'POST', body: JSON.stringify({ name, color }) }, token); }
 export function updateTag(token: string, tagId: number, name: string, color: string): Promise<Tag> { return request<Tag>(`/tags/${tagId}`, { method: 'PUT', body: JSON.stringify({ name, color }) }, token); }
@@ -82,7 +86,7 @@ export function createClient(token: string, client: Omit<Client, 'id' | 'tags'> 
 }
 
 export async function exportDatabase(token: string): Promise<string> {
-  const response = await fetch(`${apiUrl}/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
+  const response = await fetch(`${apiUrl}${apiPrefix}/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) throw new Error('No se pudo exportar la base de datos');
   return response.text();
 }
@@ -100,6 +104,7 @@ export function getOrders(token: string): Promise<Order[]> {
 }
 
 export function getAppointments(token: string): Promise<Appointment[]> { return request<Appointment[]>('/appointments', {}, token); }
+export function getAppointment(token: string, appointmentId: number): Promise<Appointment> { return request<Appointment>(`/appointments/${appointmentId}`, {}, token); }
 export function getAppointmentRequests(token: string): Promise<AppointmentRequest[]> { return request<AppointmentRequest[]>('/appointment-requests', {}, token); }
 export function confirmAppointmentRequest(token: string, requestId: number): Promise<Appointment> { return request<Appointment>(`/appointment-requests/${requestId}/confirm`, { method: 'POST' }, token); }
 export function rejectAppointmentRequest(token: string, requestId: number): Promise<void> { return request<void>(`/appointment-requests/${requestId}/reject`, { method: 'POST' }, token); }
@@ -107,6 +112,13 @@ export function createAppointment(token: string, appointment: { clientId?: numbe
   return request<Appointment>('/appointments', { method: 'POST', body: JSON.stringify(appointment) }, token);
 }
 export function deleteAppointment(token: string, appointmentId: number): Promise<void> { return request<void>(`/appointments/${appointmentId}`, { method: 'DELETE' }, token); }
+export function syncAppointment(token: string, appointmentId: number): Promise<Appointment> { return request<Appointment>(`/appointments/${appointmentId}/sync`, { method: 'POST' }, token); }
+export function updateAppointment(token: string, appointmentId: number, changes: { status?: Appointment['status'] }): Promise<Appointment> {
+  return request<Appointment>(`/appointments/${appointmentId}`, { method: 'PATCH', body: JSON.stringify(changes) }, token);
+}
+export function sendAppointmentConfirmationEmail(token: string, appointmentId: number): Promise<{ emailSent: boolean }> {
+  return request<{ emailSent: boolean }>(`/appointments/${appointmentId}/confirmation-email`, { method: 'POST' }, token);
+}
 
 export function createOrder(token: string, order: { clientId: number; title?: string; value: number; completionDate?: string; observations?: string; stockItems?: { stockItemId: number; quantity: number }[] }): Promise<Order> {
   return request<Order>('/orders', { method: 'POST', body: JSON.stringify(order) }, token);

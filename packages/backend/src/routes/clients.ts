@@ -62,7 +62,8 @@ export function createClientRouter(dataSource: DataSource): Router {
   });
 
   router.delete('/:clientId/notes/:noteId', async (request, response) => {
-    const note = await noteRepository.findOneBy({ id: Number(request.params.noteId), clientId: Number(request.params.clientId) });
+    const client = await repository.findOneBy({ id: Number(request.params.clientId), ownerId: ownerId(response) });
+    const note = client ? await noteRepository.findOneBy({ id: Number(request.params.noteId), clientId: client.id }) : null;
     if (!note) {
       response.status(404).json({ message: 'Note not found' });
       return;

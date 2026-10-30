@@ -3,7 +3,8 @@ import { DataSource } from 'typeorm';
 import { Appointment, AppointmentStatus } from '../entities/Appointment';
 import { Client } from '../entities/Client';
 import { GoogleCalendarConnection } from '../entities/GoogleCalendarConnection';
-import { deleteAppointmentFromGoogle, syncAppointmentToGoogle } from '../google';
+import { deleteAppointmentFromGoogle, isGoogleInvalidGrant, syncAppointmentToGoogle } from '../google';
+import { sendAppointmentConfirmationEmail } from '../email';
 
 const statuses: AppointmentStatus[] = ['scheduled', 'completed', 'cancelled'];
 
@@ -35,7 +36,12 @@ export function createAppointmentRouter(dataSource: DataSource): Router {
       appointment.syncError = null;
     } catch (error) {
       appointment.syncStatus = 'failed';
-      appointment.syncError = error instanceof Error ? error.message : 'Google Calendar synchronization failed';
+      if (isGoogleInvalidGrant(error)) {
+        await connectionRepository.delete({ ownerId: appointment.ownerId });
+        appointment.syncError = 'La conexión con Google expiró. Volvé a conectar Google Calendar desde Configuración.';
+      } else {
+        appointment.syncError = error instanceof Error ? error.message : 'Google Calendar synchronization failed';
+      }
     }
     return repository.save(appointment);
   }
@@ -48,7 +54,42 @@ export function createAppointmentRouter(dataSource: DataSource): Router {
       relations: { client: true },
       order: { startsAt: 'ASC' },
     });
+
+    router.get('/:id', async (request, response) => {
+      const appointment = await repository.findOne({ where: { id: Number(request.params.id), ownerId: response.locals.user.id }, relations: { client: true } });
+      if (!appointment) return response.status(404).json({ message: 'Appointment not found' });
+      response.json(appointment);
+    });
+
     response.json(appointments.filter((appointment) => (!from || appointment.endsAt >= from) && (!to || appointment.startsAt <= to)));
+  });
+
+  router.post('/:id/sync', async (request, response) => {
+    const appointment = await repository.findOne({ where: { id: Number(request.params.id), ownerId: response.locals.user.id }, relations: { client: true } });
+    if (!appointment) return response.status(404).json({ message: 'Appointment not found' });
+    const updatedAppointment = await synchronize(appointment);
+    response.status(updatedAppointment.syncStatus === 'failed' ? 502 : 200).json(updatedAppointment);
+  });
+
+  router.post('/:id/confirmation-email', async (request, response) => {
+    const appointment = await repository.findOne({ where: { id: Number(request.params.id), ownerId: response.locals.user.id }, relations: { client: true } });
+    if (!appointment) return response.status(404).json({ message: 'Appointment not found' });
+    const recipient = appointment.client?.email?.trim();
+    if (!recipient) return response.status(400).json({ message: 'The appointment client does not have an email address' });
+    try {
+      const emailSent = await sendAppointmentConfirmationEmail({
+        recipient,
+        requesterName: appointment.client?.name || 'cliente',
+        title: appointment.title,
+        startsAt: appointment.startsAt,
+        endsAt: appointment.endsAt,
+      });
+      if (!emailSent) return response.status(503).json({ message: 'Email service is not configured' });
+      response.json({ emailSent: true });
+    } catch (error) {
+      console.error('Appointment confirmation email failed', error);
+      response.status(502).json({ message: 'Could not send appointment confirmation email' });
+    }
   });
 
   router.post('/', async (request, response) => {
@@ -95,7 +136,12 @@ export function createAppointmentRouter(dataSource: DataSource): Router {
         await deleteAppointmentFromGoogle(connection, appointment);
       } catch (error) {
         appointment.syncStatus = 'failed';
-        appointment.syncError = error instanceof Error ? error.message : 'Google Calendar deletion failed';
+        if (isGoogleInvalidGrant(error)) {
+          await connectionRepository.delete({ ownerId: appointment.ownerId });
+          appointment.syncError = 'La conexión con Google expiró. Volvé a conectar Google Calendar desde Configuración.';
+        } else {
+          appointment.syncError = error instanceof Error ? error.message : 'Google Calendar deletion failed';
+        }
         await repository.save(appointment);
         return response.status(502).json({ message: 'The appointment was not deleted because Google Calendar could not be updated', syncError: appointment.syncError });
       }

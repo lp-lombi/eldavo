@@ -153,9 +153,10 @@ export function createAuthRouter(dataSource: DataSource): Router {
       client.setCredentials(tokens);
       const profile = await googleProfileEmail(client);
       await connectionRepository.upsert({ ownerId: state.userId, googleEmail: profile, calendarId: 'primary', accessTokenEncrypted: encryptToken(tokens.access_token), refreshTokenEncrypted: encryptToken(tokens.refresh_token), tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : null }, ['ownerId']);
-      response.send('<h1>Google Calendar conectado</h1><p>Ya puedes cerrar esta ventana y volver a Eldavo.</p>');
+      response.redirect('/panel?googleCalendar=connected');
     } catch (error) {
-      response.status(400).send(`<h1>No se pudo conectar Google Calendar</h1><p>${escapeHtml(error instanceof Error ? error.message : 'Error desconocido')}</p>`);
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      response.redirect(`/panel?googleCalendar=error&message=${encodeURIComponent(message)}`);
     }
   });
 
@@ -179,8 +180,4 @@ async function googleProfileEmail(client: ReturnType<typeof createGoogleOAuthCli
   } catch {
     return null;
   }
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character] as string));
 }

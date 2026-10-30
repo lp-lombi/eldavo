@@ -1,6 +1,6 @@
 $kind: http-request
 method: POST
-url: "{{baseUrl}}/clients"
+url: "{{baseUrl}}/api/clients"
 order: 2255776734587016
 headers:
   Content-Type: application/json

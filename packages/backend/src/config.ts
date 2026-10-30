@@ -14,6 +14,12 @@ DATABASE_PATH=eldavo.db
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin
 JWT_SECRET=change-this-secret
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
 `;
 
 export function loadEnvironment(): boolean {

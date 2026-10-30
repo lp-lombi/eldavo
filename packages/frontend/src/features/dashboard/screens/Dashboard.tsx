@@ -4,25 +4,23 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { faBars, faBoxesStacked, faCalendarCheck, faChartColumn, faClipboardList, faFileExport, faGaugeHigh, faRightFromBracket, faUserPlus, faUsers, faXmark, faSliders } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { Appointment, AppointmentRequest, Client, confirmAppointmentRequest, exportDatabase, Order, rejectAppointmentRequest, Session } from '../../../services';
+import { Appointment, AppointmentRequest, Client, confirmAppointmentRequest, exportDatabase, Order, rejectAppointmentRequest, Session, syncAppointment } from '../../../services';
 import { colors, styles } from '../../../shared';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { OrderList } from '../../orders/components/OrderList';
 import { ClientFormModal } from '../../clients/components/ClientFormModal';
 import { Statistics } from '../components/Statistics';
 import { AppointmentCard } from '../components/AppointmentCard';
-import { AppointmentDetailsModal } from '../components/AppointmentDetailsModal';
 import { AppointmentFormModal } from '../../appointments/components/AppointmentFormModal';
 import { PendingAppointmentRequests } from '../components/PendingAppointmentRequests';
 
-type DashboardProps = { session: Session; onLogout: () => void; onOpenSettings: () => void; onOpenClients: () => void; onOpenOrders: () => void; onOpenInventory: () => void; onOpenOrderCreate: () => void; onSelectClient: (client: Client) => void; onSelectOrder: (order: Order) => void };
+type DashboardProps = { session: Session; onLogout: () => void; onOpenSettings: () => void; onOpenClients: () => void; onOpenOrders: () => void; onOpenInventory: () => void; onOpenOrderCreate: () => void; onSelectClient: (client: Client) => void; onSelectOrder: (order: Order) => void; onSelectAppointment: (appointment: Appointment) => void };
 
-export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, onOpenOrders, onOpenInventory, onOpenOrderCreate, onSelectClient, onSelectOrder }: DashboardProps) {
+export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, onOpenOrders, onOpenInventory, onOpenOrderCreate, onSelectClient, onSelectOrder, onSelectAppointment }: DashboardProps) {
   const { clients, orders, tags, appointments, appointmentRequests, setClients, setAppointments, setAppointmentRequests, loading, error } = useDashboardData(session.token);
   const [createClientVisible, setCreateClientVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [createAppointmentVisible, setCreateAppointmentVisible] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const ordersOffset = useRef(0);
   const statisticsOffset = useRef(0);
@@ -46,7 +44,6 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
     if (appointment.syncStatus === 'failed') Alert.alert('Turno guardado, pero no sincronizado', appointment.syncError || 'No se pudo agregar el turno a Google Calendar.');
     if (appointment.syncStatus === 'not_connected') Alert.alert('Turno guardado', 'Conecta Google Calendar desde Configuración para sincronizar tus turnos.');
   };
-  const handleAppointmentDeleted = (appointmentId: number) => setAppointments((current) => current.filter((appointment) => appointment.id !== appointmentId));
   async function confirmRequest(request: AppointmentRequest) {
     try {
       const appointment = await confirmAppointmentRequest(session.token, request.id);
@@ -57,6 +54,16 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
   async function rejectRequest(request: AppointmentRequest) {
     try { await rejectAppointmentRequest(session.token, request.id); setAppointmentRequests((current) => current.filter((item) => item.id !== request.id)); }
     catch (requestError) { Alert.alert('No se pudo rechazar', requestError instanceof Error ? requestError.message : 'No se pudo rechazar la solicitud'); }
+  }
+  async function retryAppointmentSync(appointment: Appointment) {
+    try {
+      const updated = await syncAppointment(session.token, appointment.id);
+      setAppointments((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : 'No se pudo sincronizar el turno';
+      setAppointments((current) => current.map((item) => item.id === appointment.id ? { ...item, syncStatus: 'failed', syncError: message } : item));
+      Alert.alert('No se pudo sincronizar', message);
+    }
   }
 
   const pendingOrders = orders.filter((order) => order.status === 'pending');
@@ -185,15 +192,13 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
                 <Text style={styles.sectionTitle}>
                   Próximos turnos ({appointments.length})
                 </Text>
-                <Pressable onPress={() => setCreateAppointmentVisible(true)}>
-                  <Text style={styles.viewMoreText}>Nuevo</Text>
-                </Pressable>
               </View>
               {appointments.slice(0, 5).map((appointment) => (
                 <AppointmentCard
                   appointment={appointment}
                   key={appointment.id}
-                  onPress={setSelectedAppointment}
+                  onPress={onSelectAppointment}
+                  onSync={(item) => void retryAppointmentSync(item)}
                 />
               ))}
               {!appointments.length ? (
@@ -241,7 +246,11 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
                 />
               </Pressable>
             </View>
-            <View style={styles.drawerMenu}>
+            <ScrollView
+              contentContainerStyle={styles.drawerMenuContent}
+              showsVerticalScrollIndicator
+              style={styles.drawerMenu}
+            >
               <Pressable onPress={() => navigateTo(0)} style={styles.navItem}>
                 <FontAwesomeIcon
                   color={colors.accent}
@@ -308,7 +317,7 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
                 />
                 <Text style={styles.navItemText}>Configuración</Text>
               </Pressable>
-            </View>
+            </ScrollView>
             <View style={styles.drawerFooter}>
               <Pressable onPress={onLogout} style={styles.drawerLogoutButton}>
                 <FontAwesomeIcon
@@ -340,12 +349,6 @@ export function Dashboard({ session, onLogout, onOpenSettings, onOpenClients, on
         onCreated={handleAppointmentCreated}
         token={session.token}
         visible={createAppointmentVisible}
-      />
-      <AppointmentDetailsModal
-        appointment={selectedAppointment}
-        onClose={() => setSelectedAppointment(null)}
-        onDeleted={handleAppointmentDeleted}
-        token={session.token}
       />
     </View>
   );
